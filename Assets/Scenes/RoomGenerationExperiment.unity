@@ -369,12 +369,30 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::DungeonGenerator
   size: {x: 3, y: 3}
   startPos: 0
-  rooms:
-  - room: {fileID: 1809495234291153031, guid: b84aee064f2741e45ae830e88c0e64ea, type: 3}
-    minPosition: {x: 0, y: 0}
-    maxPosition: {x: 0, y: 0}
-    obligatory: 0
   offset: {x: 5.92, y: 10.2}
+  plainRooms:
+  - {fileID: 1809495234291153031, guid: b84aee064f2741e45ae830e88c0e64ea, type: 3}
+  easyRooms:
+  - prefab: {fileID: 5420697093422660249, guid: c8f2344efe9bac7489002b166db140fb, type: 3}
+    entryDoor: 2
+    exitDoor: 3
+  - prefab: {fileID: 5420697093422660249, guid: c8f2344efe9bac7489002b166db140fb, type: 3}
+    entryDoor: 2
+    exitDoor: 3
+  mediumRooms:
+  - prefab: {fileID: 6966774318764550177, guid: 1e1f34ca9bbe2444aa1fb97d147c6854, type: 3}
+    entryDoor: 2
+    exitDoor: 3
+  - prefab: {fileID: 7130935178537554312, guid: 631323824a2613b4383fe28adad81ad1, type: 3}
+    entryDoor: 2
+    exitDoor: 3
+  hardRooms:
+  - prefab: {fileID: 8005353240108239466, guid: 20f2e80569e90bd4596ec7f54aa72511, type: 3}
+    entryDoor: 4
+    exitDoor: 2
+  - prefab: {fileID: 7878104822732282790, guid: b79046ade37187247bec2cebb307aff3, type: 3}
+    entryDoor: 1
+    exitDoor: 2
 --- !u!4 &2110360901
 Transform:
   m_ObjectHideFlags: 0

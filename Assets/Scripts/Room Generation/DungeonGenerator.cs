@@ -62,6 +62,12 @@ public class DungeonGenerator : MonoBehaviour
 
     void MazeGenerator()
     {
+        // Without this, the Editor can carry UnityEngine.Random's state across
+        // Play sessions (depends on your Enter Play Mode / Domain Reload
+        // settings), so the exact same sequence of "random" calls produces the
+        // exact same maze and the exact same room picks every time you hit Play.
+        Random.InitState(System.Environment.TickCount);
+
         board = new List<Cell>();
         for (int i = 0; i < size.x; i++)
             for (int j = 0; j < size.y; j++)
@@ -258,13 +264,24 @@ public class DungeonGenerator : MonoBehaviour
 
                 if (prefabToSpawn == null) continue;
 
-                var instance = Instantiate(
+                GameObject instanceGO = Instantiate(
                     prefabToSpawn,
                     new Vector3(i * offset.x, 0, -j * offset.y),
-                    Quaternion.Euler(0, rotationY, 0),
+                    Quaternion.identity,
                     transform
-                ).GetComponent<RoomBehaviour>();
+                );
 
+                // Rotate around the room's actual visual center, not whatever
+                // point the prefab happens to use as its transform pivot -
+                // otherwise a 90/270 rotation can swing the mesh sideways out
+                // of its assigned grid cell and into a neighbor.
+                if (!Mathf.Approximately(rotationY, 0f))
+                {
+                    Bounds bounds = GetRendererBounds(instanceGO);
+                    instanceGO.transform.RotateAround(bounds.center, Vector3.up, rotationY);
+                }
+
+                var instance = instanceGO.GetComponent<RoomBehaviour>();
                 instance.UpdateRoom(localStatus);
                 instance.name += " " + i + "-" + j;
             }
@@ -347,6 +364,18 @@ public class DungeonGenerator : MonoBehaviour
         else if (difficulty == RoomDifficulty.Hard) lastUsedHard = picked;
 
         return picked;
+    }
+
+    Bounds GetRendererBounds(GameObject go)
+    {
+        Renderer[] renderers = go.GetComponentsInChildren<Renderer>();
+        if (renderers.Length == 0)
+            return new Bounds(go.transform.position, Vector3.zero);
+
+        Bounds b = renderers[0].bounds;
+        for (int i = 1; i < renderers.Length; i++)
+            b.Encapsulate(renderers[i].bounds);
+        return b;
     }
 
     List<int> CheckNeighbors(int cell)
