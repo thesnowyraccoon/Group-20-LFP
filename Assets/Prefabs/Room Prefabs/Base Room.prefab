@@ -76,15 +76,82 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 2877568197813313735}
-  - {fileID: 1929754301434897130}
   - {fileID: 6584031427618950880}
+  - {fileID: 1929754301434897130}
   - {fileID: 1764466128264193128}
   - {fileID: 5162107630863713924}
-  - {fileID: 4929101320118317852}
   - {fileID: 1059412736715157439}
+  - {fileID: 4929101320118317852}
   - {fileID: 3901123994775814303}
+  - {fileID: 7397892131066108363}
   m_Father: {fileID: 421067942260450391}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &6772572636500285989
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 7397892131066108363}
+  - component: {fileID: 5275951673085419157}
+  - component: {fileID: 2672829245269040395}
+  m_Layer: 0
+  m_Name: Wall Collision
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &7397892131066108363
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6772572636500285989}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 1.65, y: 0.65, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 9183757065824555602}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!65 &5275951673085419157
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6772572636500285989}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 0
+  serializedVersion: 3
+  m_Size: {x: 6.2975464, y: 5.2313757, z: 9.434227}
+  m_Center: {x: -0.22221375, y: 2.1156878, z: -0.54100037}
+--- !u!114 &2672829245269040395
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6772572636500285989}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b0103304022589540aa6ccf83fba98f8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::WallCollision
 --- !u!1 &7401789451466121062
 GameObject:
   m_ObjectHideFlags: 0
@@ -133,13 +200,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::RoomBehaviour
   walls:
   - {fileID: 3471197411507928140}
-  - {fileID: 938116447001902689}
   - {fileID: 5520334604198515307}
+  - {fileID: 938116447001902689}
   - {fileID: 1134803994348468451}
   doors:
   - {fileID: 1944445100272216411}
-  - {fileID: 1817444920085044419}
   - {fileID: 6047412131716923488}
+  - {fileID: 1817444920085044419}
   - {fileID: 7745312389160234816}
 --- !u!1 &9175485461589287050
 GameObject:
