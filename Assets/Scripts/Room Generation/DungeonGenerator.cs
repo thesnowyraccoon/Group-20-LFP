@@ -1,399 +1,791 @@
-using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
 public class DungeonGenerator : MonoBehaviour
 {
-    public enum RoomDifficulty { Plain, Easy, Medium, Hard }
-
-    public class Cell
+    public enum RoomDifficulty
     {
-        public bool visited = false;
-        public bool[] status = new bool[4]; // 0-Up 1-Down 2-Right 3-Left
-        public RoomDifficulty difficulty = RoomDifficulty.Plain;
-
-        // Only meaningful when difficulty != Plain. These are the WORLD-space
-        // directions the challenge room's entry/exit must line up with.
-        public int incomingDir = -1;
-        public int outgoingDir = -1;
+        Plain,
+        Easy,
+        Medium,
+        Hard
     }
 
     [System.Serializable]
     public class RoomVariant
     {
         public GameObject prefab;
-
-        [Tooltip("Door index this prefab was BUILT with as the entrance, before any rotation is applied. 0-Up 1-Down 2-Right 3-Left")]
         public int entryDoor = 3;
-
-        [Tooltip("Door index this prefab was BUILT with as the exit, before any rotation is applied. 0-Up 1-Down 2-Right 3-Left. Must currently be the OPPOSITE side from entryDoor (straight-through layout only).")]
         public int exitDoor = 2;
     }
 
-    [Header("Grid")]
-    public Vector2Int size;
-    public int startPos = 0;
-    public Vector2 offset;
+    private class GeneratedRoom
+    {
+        public Vector2Int gridPosition;
+        public RoomDifficulty difficulty;
+        public int incomingDir = -1;
+        public int outgoingDir = -1;
+        public bool[] status = new bool[4];
+    }
 
-    [Header("Generic / connector rooms (junctions, corners, dead-ends, start & end)")]
+    [Header("Room Generation")]
+    [Min(7)]
+    public int roomCount = 7;
+    public Vector2Int gridSize = new Vector2Int(9, 9);
+    public Vector2Int startPosition = new Vector2Int(4, 4);
+    public Vector2 offset = new Vector2(20f, 20f);
+
+    [Header("Generic Rooms")]
     public GameObject[] plainRooms;
 
-    [Header("Challenge room variants - straight two-door segments of the main route only")]
+    [Header("Challenge Room Variants")]
     public RoomVariant[] easyRooms;
     public RoomVariant[] mediumRooms;
     public RoomVariant[] hardRooms;
 
-    List<Cell> board;
-    List<int> mainPath;
+    static readonly float[] directionAngle =
+    {
+        0f,
+        180f,
+        90f,
+        270f
+    };
 
-    // World-space angle (degrees, Y rotation) for each direction index. Adjust
-    // these if your prefabs' "forward" axis doesn't match this convention -
-    // easiest way to check is to drop one challenge prefab in a test cell and
-    // see which way it's actually facing after rotation.
-    static readonly float[] directionAngle = { 0f, 180f, 90f, 270f }; // Up, Down, Right, Left
-
-    Dictionary<RoomDifficulty, List<RoomVariant>> shuffleBags = new Dictionary<RoomDifficulty, List<RoomVariant>>();
-    RoomVariant lastUsedEasy, lastUsedMedium, lastUsedHard;
+    List<GeneratedRoom> generatedRooms = new List<GeneratedRoom>();
 
     void Start()
     {
-        MazeGenerator();
-    }
-
-    void MazeGenerator()
-    {
-        // Without this, the Editor can carry UnityEngine.Random's state across
-        // Play sessions (depends on your Enter Play Mode / Domain Reload
-        // settings), so the exact same sequence of "random" calls produces the
-        // exact same maze and the exact same room picks every time you hit Play.
-        Random.InitState(System.Environment.TickCount);
-
-        board = new List<Cell>();
-        for (int i = 0; i < size.x; i++)
-            for (int j = 0; j < size.y; j++)
-                board.Add(new Cell());
-
-        int currentCell = startPos;
-        Stack<int> path = new Stack<int>();
-        List<int> traveled = new List<int> { currentCell };
-
-        int k = 0;
-        while (k < 1000)
-        {
-            k++;
-            board[currentCell].visited = true;
-
-            if (currentCell == board.Count - 1)
-                break;
-
-            List<int> neighbors = CheckNeighbors(currentCell);
-
-            if (neighbors.Count == 0)
-            {
-                if (path.Count == 0)
-                    break;
-
-                currentCell = path.Pop();
-                traveled.Add(currentCell); // log the backtrack so we can reconstruct the real route later
-            }
-            else
-            {
-                path.Push(currentCell);
-                int newCell = neighbors[Random.Range(0, neighbors.Count)];
-
-                if (newCell > currentCell)
-                {
-                    if (newCell - 1 == currentCell)
-                    {
-                        board[currentCell].status[2] = true; // Right
-                        currentCell = newCell;
-                        board[currentCell].status[3] = true; // Left
-                    }
-                    else
-                    {
-                        board[currentCell].status[1] = true; // Down
-                        currentCell = newCell;
-                        board[currentCell].status[0] = true; // Up
-                    }
-                }
-                else
-                {
-                    if (newCell + 1 == currentCell)
-                    {
-                        board[currentCell].status[3] = true; // Left
-                        currentCell = newCell;
-                        board[currentCell].status[2] = true; // Right
-                    }
-                    else
-                    {
-                        board[currentCell].status[0] = true; // Up
-                        currentCell = newCell;
-                        board[currentCell].status[1] = true; // Down
-                    }
-                }
-
-                traveled.Add(currentCell);
-            }
-        }
-
-        BuildMainPath(traveled);
-        AssignDifficulties();
         GenerateDungeon();
-    }
-
-    // Collapses the raw walk (which includes backtracks) down to the single
-    // start -> end route, by dropping anything between a cell's first visit
-    // and the next time that same cell shows up in the log.
-    void BuildMainPath(List<int> traveled)
-    {
-        mainPath = new List<int>();
-        foreach (int cell in traveled)
-        {
-            int idx = mainPath.IndexOf(cell);
-            if (idx >= 0)
-                mainPath.RemoveRange(idx + 1, mainPath.Count - idx - 1);
-            else
-                mainPath.Add(cell);
-        }
-    }
-
-    void AssignDifficulties()
-    {
-        if (mainPath == null || mainPath.Count < 3)
-            return;
-
-        int total = mainPath.Count;
-
-        // Skip index 0 (start) and the last index (end) - those stay Plain.
-        for (int step = 1; step < total - 1; step++)
-        {
-            int prev = mainPath[step - 1];
-            int cur = mainPath[step];
-            int next = mainPath[step + 1];
-
-            int incoming = Opposite(DirBetween(prev, cur));
-            int outgoing = DirBetween(cur, next);
-
-            if (incoming < 0 || outgoing < 0)
-                continue;
-
-            Cell cell = board[cur];
-
-            // Only treat this as a challenge slot if those are the ONLY two
-            // active doors (no stray branch door from an earlier backtrack)
-            // and they're on opposite sides (straight segment, not a corner).
-            if (!IsExactlyStraight(cell, incoming, outgoing))
-                continue;
-
-            float t = (float)step / (total - 1);
-            if (t < 1f / 3f)
-                cell.difficulty = RoomDifficulty.Easy;
-            else if (t < 2f / 3f)
-                cell.difficulty = RoomDifficulty.Medium;
-            else
-                cell.difficulty = RoomDifficulty.Hard;
-
-            cell.incomingDir = incoming;
-            cell.outgoingDir = outgoing;
-        }
-    }
-
-    bool IsExactlyStraight(Cell cell, int a, int b)
-    {
-        if (Opposite(a) != b) return false; // not opposite sides -> it's a corner, leave as Plain
-
-        for (int d = 0; d < 4; d++)
-        {
-            bool shouldBeOpen = (d == a || d == b);
-            if (cell.status[d] != shouldBeOpen)
-                return false; // extra branch door present -> treat as junction
-        }
-        return true;
-    }
-
-    int DirBetween(int from, int to)
-    {
-        if (to == from + 1) return 2;        // Right
-        if (to == from - 1) return 3;        // Left
-        if (to == from + size.x) return 1;   // Down
-        if (to == from - size.x) return 0;   // Up
-        return -1;
-    }
-
-    int Opposite(int d)
-    {
-        if (d == 0) return 1;
-        if (d == 1) return 0;
-        if (d == 2) return 3;
-        if (d == 3) return 2;
-        return -1;
     }
 
     void GenerateDungeon()
     {
-        for (int i = 0; i < size.x; i++)
+        Random.InitState(System.Environment.TickCount);
+        generatedRooms.Clear();
+
+        if (roomCount < 7)
         {
-            for (int j = 0; j < size.y; j++)
+            roomCount = 7;
+        }
+
+        if (plainRooms == null || plainRooms.Length == 0)
+        {
+            Debug.LogError("DungeonGenerator: No plain rooms assigned.");
+            return;
+        }
+
+        if (!ValidateChallengeRooms())
+        {
+            return;
+        }
+
+        bool generated = GenerateControlledPath();
+
+        if (!generated)
+        {
+            Debug.LogError("DungeonGenerator: Could not generate a valid room path.");
+            return;
+        }
+
+        AssignRoomDifficulties();
+        BuildRoomConnections();
+        SpawnRooms();
+
+        Debug.Log("Dungeon generated successfully with " + generatedRooms.Count + " rooms.");
+    }
+
+    bool ValidateChallengeRooms()
+    {
+        if (easyRooms == null || easyRooms.Length < 2)
+        {
+            Debug.LogError("DungeonGenerator: You need at least 2 Easy room variants.");
+            return false;
+        }
+
+        if (mediumRooms == null || mediumRooms.Length < 2)
+        {
+            Debug.LogError("DungeonGenerator: You need at least 2 Medium room variants.");
+            return false;
+        }
+
+        if (hardRooms == null || hardRooms.Length < 2)
+        {
+            Debug.LogError("DungeonGenerator: You need at least 2 Hard room variants.");
+            return false;
+        }
+
+        return true;
+    }
+
+    bool GenerateControlledPath()
+    {
+        generatedRooms.Clear();
+
+        HashSet<Vector2Int> occupied = new HashSet<Vector2Int>();
+
+        Vector2Int currentPosition = startPosition;
+
+        occupied.Add(currentPosition);
+
+        generatedRooms.Add(
+            new GeneratedRoom
             {
-                Cell currentCell = board[i + j * size.x];
-                if (!currentCell.visited) continue;
+                gridPosition = currentPosition,
+                difficulty = RoomDifficulty.Plain
+            }
+        );
 
-                RoomVariant variant = null;
-                if (currentCell.difficulty != RoomDifficulty.Plain)
-                    variant = PickVariant(currentCell.difficulty);
+        return GeneratePathRecursive(
+            1,
+            currentPosition,
+            -1,
+            occupied
+        );
+    }
 
-                GameObject prefabToSpawn;
-                float rotationY = 0f;
-                bool[] localStatus = currentCell.status;
+    bool GeneratePathRecursive(
+        int roomIndex,
+        Vector2Int currentPosition,
+        int previousDirection,
+        HashSet<Vector2Int> occupied)
+    {
+        if (roomIndex >= roomCount)
+        {
+            return true;
+        }
 
-                if (variant != null)
+        List<int> possibleDirections =
+            GetAvailableDirections(
+                currentPosition,
+                occupied
+            );
+
+        Shuffle(possibleDirections);
+
+        foreach (int direction in possibleDirections)
+        {
+            bool isChallengeRoom =
+                IsChallengeIndex(roomIndex);
+
+            if (isChallengeRoom)
+            {
+                if (previousDirection >= 0 &&
+                    direction != previousDirection)
                 {
-                    prefabToSpawn = variant.prefab;
-                    rotationY = NormalizeAngle(directionAngle[currentCell.incomingDir] - directionAngle[variant.entryDoor]);
-                    localStatus = RemapStatusForRotation(currentCell.status, rotationY);
+                    continue;
                 }
-                else
-                {
-                    if (plainRooms == null || plainRooms.Length == 0)
-                    {
-                        Debug.LogWarning("No plainRooms assigned - skipping cell " + i + "," + j);
-                        continue;
-                    }
-                    prefabToSpawn = plainRooms[Random.Range(0, plainRooms.Length)];
-                }
+            }
 
-                if (prefabToSpawn == null) continue;
-
-                GameObject instanceGO = Instantiate(
-                    prefabToSpawn,
-                    new Vector3(i * offset.x, 0, -j * offset.y),
-                    Quaternion.identity,
-                    transform
+            Vector2Int nextPosition =
+                MoveInDirection(
+                    currentPosition,
+                    direction
                 );
 
-                // Rotate around the room's actual visual center, not whatever
-                // point the prefab happens to use as its transform pivot -
-                // otherwise a 90/270 rotation can swing the mesh sideways out
-                // of its assigned grid cell and into a neighbor.
-                if (!Mathf.Approximately(rotationY, 0f))
-                {
-                    Bounds bounds = GetRendererBounds(instanceGO);
-                    instanceGO.transform.RotateAround(bounds.center, Vector3.up, rotationY);
-                }
+            if (occupied.Contains(nextPosition))
+            {
+                continue;
+            }
 
-                var instance = instanceGO.GetComponent<RoomBehaviour>();
-                instance.UpdateRoom(localStatus);
-                instance.name += " " + i + "-" + j;
+            occupied.Add(nextPosition);
+
+            GeneratedRoom newRoom =
+                new GeneratedRoom();
+
+            newRoom.gridPosition = nextPosition;
+            newRoom.difficulty = RoomDifficulty.Plain;
+
+            generatedRooms.Add(newRoom);
+
+            if (GeneratePathRecursive(
+                roomIndex + 1,
+                nextPosition,
+                direction,
+                occupied))
+            {
+                return true;
+            }
+
+            occupied.Remove(nextPosition);
+            generatedRooms.RemoveAt(
+                generatedRooms.Count - 1
+            );
+        }
+
+        return false;
+    }
+
+    bool IsChallengeIndex(int index)
+    {
+        return index == 1 ||
+               index == 3 ||
+               index == 5;
+    }
+
+    void AssignRoomDifficulties()
+    {
+        if (generatedRooms.Count < 7)
+        {
+            return;
+        }
+
+        generatedRooms[0].difficulty =
+            RoomDifficulty.Plain;
+
+        generatedRooms[1].difficulty =
+            RoomDifficulty.Easy;
+
+        generatedRooms[2].difficulty =
+            RoomDifficulty.Plain;
+
+        generatedRooms[3].difficulty =
+            RoomDifficulty.Medium;
+
+        generatedRooms[4].difficulty =
+            RoomDifficulty.Plain;
+
+        generatedRooms[5].difficulty =
+            RoomDifficulty.Hard;
+
+        generatedRooms[6].difficulty =
+            RoomDifficulty.Plain;
+    }
+
+    void BuildRoomConnections()
+    {
+        for (int i = 0; i < generatedRooms.Count; i++)
+        {
+            GeneratedRoom room =
+                generatedRooms[i];
+
+            room.status = new bool[4];
+
+            if (i > 0)
+            {
+                Vector2Int previous =
+                    generatedRooms[i - 1].gridPosition;
+
+                room.incomingDir =
+                    Opposite(
+                        DirectionBetween(
+                            previous,
+                            room.gridPosition
+                        )
+                    );
+
+                room.status[
+                    room.incomingDir
+                ] = true;
+            }
+
+            if (i < generatedRooms.Count - 1)
+            {
+                Vector2Int next =
+                    generatedRooms[i + 1].gridPosition;
+
+                room.outgoingDir =
+                    DirectionBetween(
+                        room.gridPosition,
+                        next
+                    );
+
+                room.status[
+                    room.outgoingDir
+                ] = true;
+            }
+
+            if (room.difficulty != RoomDifficulty.Plain)
+            {
+                if (Opposite(room.incomingDir) != room.outgoingDir)
+                {
+                    Debug.LogError(
+                        room.difficulty +
+                        " room is not straight. Incoming: " +
+                        room.incomingDir +
+                        " Outgoing: " +
+                        room.outgoingDir
+                    );
+                }
             }
         }
     }
 
-    // A rotated room's LOCAL door index no longer matches the WORLD direction
-    // stored in Cell.status, so we translate world -> local before calling
-    // UpdateRoom, otherwise a rotated room opens the wrong doors/walls.
-    bool[] RemapStatusForRotation(bool[] worldStatus, float rotationY)
+    void SpawnRooms()
     {
-        bool[] local = new bool[4];
-        for (int w = 0; w < 4; w++)
+        for (int i = 0; i < generatedRooms.Count; i++)
         {
-            if (!worldStatus[w]) continue;
-            int l = IndexFromAngle(directionAngle[w] - rotationY);
-            if (l >= 0) local[l] = true;
+            GeneratedRoom room =
+                generatedRooms[i];
+
+            GameObject prefab =
+                GetPrefabForRoom(
+                    room.difficulty
+                );
+
+            if (prefab == null)
+            {
+                Debug.LogWarning(
+                    "No prefab found for room " + i
+                );
+
+                continue;
+            }
+
+            Vector3 targetPosition =
+                new Vector3(
+                    room.gridPosition.x * offset.x,
+                    0f,
+                    -room.gridPosition.y * offset.y
+                );
+
+            GameObject instance =
+                Instantiate(
+                    prefab,
+                    targetPosition,
+                    Quaternion.identity,
+                    transform
+                );
+
+            float rotationY = 0f;
+
+            if (room.difficulty != RoomDifficulty.Plain)
+            {
+                RoomVariant variant =
+                    GetVariant(
+                        room.difficulty,
+                        prefab
+                    );
+
+                if (variant != null)
+                {
+                    rotationY =
+                        CalculateRotation(
+                            room.incomingDir,
+                            variant.entryDoor
+                        );
+
+                    Bounds bounds =
+                        GetRendererBounds(instance);
+
+                    instance.transform.RotateAround(
+                        bounds.center,
+                        Vector3.up,
+                        rotationY
+                    );
+
+                    Bounds rotatedBounds =
+                        GetRendererBounds(instance);
+
+                    Vector3 correction =
+                        targetPosition -
+                        rotatedBounds.center;
+
+                    correction.y = 0f;
+
+                    instance.transform.position +=
+                        correction;
+
+                    Debug.Log(
+                        room.difficulty +
+                        " ROOM " +
+                        i +
+                        " = " +
+                        prefab.name +
+                        " | Rotation: " +
+                        rotationY
+                    );
+                }
+            }
+
+            bool[] localStatus =
+                RemapStatusForRotation(
+                    room.status,
+                    rotationY
+                );
+
+            RoomBehaviour behaviour =
+                instance.GetComponent<RoomBehaviour>();
+
+            if (behaviour != null)
+            {
+                behaviour.UpdateRoom(
+                    localStatus
+                );
+            }
+            else
+            {
+                Debug.LogWarning(
+                    "Room " +
+                    prefab.name +
+                    " does not have a RoomBehaviour."
+                );
+            }
+
+            instance.name =
+                GetRoomName(room.difficulty) +
+                "_" +
+                i;
         }
-        return local;
+    }
+
+    GameObject GetPrefabForRoom(
+        RoomDifficulty difficulty)
+    {
+        switch (difficulty)
+        {
+            case RoomDifficulty.Easy:
+                return PickRandomVariant(
+                    easyRooms
+                );
+
+            case RoomDifficulty.Medium:
+                return PickRandomVariant(
+                    mediumRooms
+                );
+
+            case RoomDifficulty.Hard:
+                return PickRandomVariant(
+                    hardRooms
+                );
+
+            default:
+                return plainRooms[
+                    Random.Range(
+                        0,
+                        plainRooms.Length
+                    )
+                ];
+        }
+    }
+
+    GameObject PickRandomVariant(
+        RoomVariant[] variants)
+    {
+        if (variants == null ||
+            variants.Length == 0)
+        {
+            return null;
+        }
+
+        RoomVariant selected =
+            variants[
+                Random.Range(
+                    0,
+                    variants.Length
+                )
+            ];
+
+        if (selected == null)
+        {
+            return null;
+        }
+
+        return selected.prefab;
+    }
+
+    RoomVariant GetVariant(
+        RoomDifficulty difficulty,
+        GameObject prefab)
+    {
+        RoomVariant[] variants = null;
+
+        switch (difficulty)
+        {
+            case RoomDifficulty.Easy:
+                variants = easyRooms;
+                break;
+
+            case RoomDifficulty.Medium:
+                variants = mediumRooms;
+                break;
+
+            case RoomDifficulty.Hard:
+                variants = hardRooms;
+                break;
+        }
+
+        if (variants == null)
+        {
+            return null;
+        }
+
+        foreach (RoomVariant variant in variants)
+        {
+            if (variant != null &&
+                variant.prefab == prefab)
+            {
+                return variant;
+            }
+        }
+
+        return null;
+    }
+
+    float CalculateRotation(
+        int worldEntryDirection,
+        int prefabEntryDirection)
+    {
+        if (worldEntryDirection < 0 ||
+            prefabEntryDirection < 0)
+        {
+            return 0f;
+        }
+
+        return NormalizeAngle(
+            directionAngle[
+                worldEntryDirection
+            ] -
+            directionAngle[
+                prefabEntryDirection
+            ]
+        );
+    }
+
+    bool[] RemapStatusForRotation(
+        bool[] worldStatus,
+        float rotationY)
+    {
+        bool[] localStatus =
+            new bool[4];
+
+        for (int worldDirection = 0;
+             worldDirection < 4;
+             worldDirection++)
+        {
+            if (!worldStatus[worldDirection])
+            {
+                continue;
+            }
+
+            int localDirection =
+                IndexFromAngle(
+                    directionAngle[
+                        worldDirection
+                    ] - rotationY
+                );
+
+            if (localDirection >= 0)
+            {
+                localStatus[
+                    localDirection
+                ] = true;
+            }
+        }
+
+        return localStatus;
     }
 
     int IndexFromAngle(float angle)
     {
         angle = NormalizeAngle(angle);
+
         for (int i = 0; i < 4; i++)
-            if (Mathf.Approximately(directionAngle[i], angle))
+        {
+            if (Mathf.Approximately(
+                directionAngle[i],
+                angle))
+            {
                 return i;
+            }
+        }
+
         return -1;
     }
 
-    float NormalizeAngle(float a)
+    List<int> GetAvailableDirections(
+        Vector2Int position,
+        HashSet<Vector2Int> occupied)
     {
-        a %= 360f;
-        if (a < 0) a += 360f;
-        return a;
-    }
+        List<int> directions =
+            new List<int>();
 
-    RoomVariant PickVariant(RoomDifficulty difficulty)
-    {
-        RoomVariant[] source = null;
-        if (difficulty == RoomDifficulty.Easy) source = easyRooms;
-        else if (difficulty == RoomDifficulty.Medium) source = mediumRooms;
-        else if (difficulty == RoomDifficulty.Hard) source = hardRooms;
-
-        if (source == null || source.Length == 0)
-            return null;
-
-        List<RoomVariant> bag;
-        if (!shuffleBags.TryGetValue(difficulty, out bag) || bag.Count == 0)
+        for (int direction = 0;
+             direction < 4;
+             direction++)
         {
-            bag = new List<RoomVariant>(source);
-            for (int i = bag.Count - 1; i > 0; i--)
+            Vector2Int next =
+                MoveInDirection(
+                    position,
+                    direction
+                );
+
+            if (!IsInsideGrid(next))
             {
-                int r = Random.Range(0, i + 1);
-                RoomVariant tmp = bag[i];
-                bag[i] = bag[r];
-                bag[r] = tmp;
+                continue;
             }
 
-            RoomVariant last = null;
-            if (difficulty == RoomDifficulty.Easy) last = lastUsedEasy;
-            else if (difficulty == RoomDifficulty.Medium) last = lastUsedMedium;
-            else if (difficulty == RoomDifficulty.Hard) last = lastUsedHard;
-
-            if (bag.Count > 1 && bag[0] == last)
+            if (occupied.Contains(next))
             {
-                RoomVariant tmp = bag[0];
-                bag[0] = bag[1];
-                bag[1] = tmp;
+                continue;
             }
 
-            shuffleBags[difficulty] = bag;
+            directions.Add(direction);
         }
 
-        RoomVariant picked = bag[0];
-        bag.RemoveAt(0);
+        return directions;
+    }
 
-        if (difficulty == RoomDifficulty.Easy) lastUsedEasy = picked;
-        else if (difficulty == RoomDifficulty.Medium) lastUsedMedium = picked;
-        else if (difficulty == RoomDifficulty.Hard) lastUsedHard = picked;
+    Vector2Int MoveInDirection(
+        Vector2Int position,
+        int direction)
+    {
+        switch (direction)
+        {
+            case 0:
+                return position +
+                       Vector2Int.up;
 
-        return picked;
+            case 1:
+                return position +
+                       Vector2Int.down;
+
+            case 2:
+                return position +
+                       Vector2Int.right;
+
+            case 3:
+                return position +
+                       Vector2Int.left;
+        }
+
+        return position;
+    }
+
+    int DirectionBetween(
+        Vector2Int from,
+        Vector2Int to)
+    {
+        Vector2Int difference =
+            to - from;
+
+        if (difference == Vector2Int.up)
+        {
+            return 0;
+        }
+
+        if (difference == Vector2Int.down)
+        {
+            return 1;
+        }
+
+        if (difference == Vector2Int.right)
+        {
+            return 2;
+        }
+
+        if (difference == Vector2Int.left)
+        {
+            return 3;
+        }
+
+        return -1;
+    }
+
+    int Opposite(int direction)
+    {
+        switch (direction)
+        {
+            case 0:
+                return 1;
+
+            case 1:
+                return 0;
+
+            case 2:
+                return 3;
+
+            case 3:
+                return 2;
+        }
+
+        return -1;
+    }
+
+    bool IsInsideGrid(
+        Vector2Int position)
+    {
+        return position.x >= 0 &&
+               position.x < gridSize.x &&
+               position.y >= 0 &&
+               position.y < gridSize.y;
+    }
+
+    void Shuffle(List<int> list)
+    {
+        for (int i = list.Count - 1;
+             i > 0;
+             i--)
+        {
+            int randomIndex =
+                Random.Range(0, i + 1);
+
+            int temporary =
+                list[i];
+
+            list[i] =
+                list[randomIndex];
+
+            list[randomIndex] =
+                temporary;
+        }
+    }
+
+    float NormalizeAngle(float angle)
+    {
+        angle %= 360f;
+
+        if (angle < 0f)
+        {
+            angle += 360f;
+        }
+
+        return angle;
     }
 
     Bounds GetRendererBounds(GameObject go)
     {
-        Renderer[] renderers = go.GetComponentsInChildren<Renderer>();
-        if (renderers.Length == 0)
-            return new Bounds(go.transform.position, Vector3.zero);
+        Renderer[] renderers =
+            go.GetComponentsInChildren<Renderer>();
 
-        Bounds b = renderers[0].bounds;
-        for (int i = 1; i < renderers.Length; i++)
-            b.Encapsulate(renderers[i].bounds);
-        return b;
+        if (renderers.Length == 0)
+        {
+            return new Bounds(
+                go.transform.position,
+                Vector3.zero
+            );
+        }
+
+        Bounds bounds =
+            renderers[0].bounds;
+
+        for (int i = 1;
+             i < renderers.Length;
+             i++)
+        {
+            bounds.Encapsulate(
+                renderers[i].bounds
+            );
+        }
+
+        return bounds;
     }
 
-    List<int> CheckNeighbors(int cell)
+    string GetRoomName(
+        RoomDifficulty difficulty)
     {
-        List<int> neighbors = new List<int>();
+        switch (difficulty)
+        {
+            case RoomDifficulty.Easy:
+                return "EasyRoom";
 
-        if (cell - size.x >= 0 && !board[cell - size.x].visited)
-            neighbors.Add(cell - size.x);
+            case RoomDifficulty.Medium:
+                return "MediumRoom";
 
-        if (cell + size.x < board.Count && !board[cell + size.x].visited)
-            neighbors.Add(cell + size.x);
+            case RoomDifficulty.Hard:
+                return "HardRoom";
 
-        if ((cell + 1) % size.x != 0 && !board[cell + 1].visited)
-            neighbors.Add(cell + 1);
-
-        if (cell % size.x != 0 && !board[cell - 1].visited)
-            neighbors.Add(cell - 1);
-
-        return neighbors;
+            default:
+                return "PlainRoom";
+        }
     }
 }
