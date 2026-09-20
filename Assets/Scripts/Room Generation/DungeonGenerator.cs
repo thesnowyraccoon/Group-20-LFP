@@ -26,6 +26,11 @@ public class DungeonGenerator : MonoBehaviour
         public int incomingDir = -1;
         public int outgoingDir = -1;
         public bool[] status = new bool[4];
+
+        // Filled in by ComputeRoomOrientationsAndPrefabs / ComputeRoomWorldPositions.
+        public GameObject prefab;
+        public float rotationY;
+        public Vector3 worldPosition;
     }
 
     [Min(7)]
@@ -33,7 +38,19 @@ public class DungeonGenerator : MonoBehaviour
 
     public Vector2Int gridSize = new Vector2Int(9, 9);
     public Vector2Int startPosition = new Vector2Int(4, 4);
-    public Vector2 offset = new Vector2(20f, 20f);
+
+    [Header("Dungeon origin")]
+    [Tooltip("World position (X, Y and Z all support decimals) that the first room is centered on. For accurate placement, copy this from a reference room you've positioned by hand in the scene (e.g. your BASE room's Transform) rather than guessing - a hand-placed room is already sitting correctly on the ground, which the player's transform usually isn't (its pivot - feet, capsule center, etc. - rarely matches the exact height a room was authored at, which is what causes falling through the floor).")]
+    public Vector3 dungeonOrigin = Vector3.zero;
+
+    [Tooltip("Optional. If assigned, the dungeon's X and Z are taken from this transform every time the dungeon generates, while Y still comes from Dungeon Origin above. Leave empty to use Dungeon Origin exactly as entered.")]
+    public Transform startTransform;
+
+    [Header("Room footprint (world units, unrotated)")]
+    [Tooltip("Room size along local X before any rotation is applied.")]
+    public float roomWidth = 6f;
+    [Tooltip("Room size along local Z before any rotation is applied (the long axis for straight challenge rooms).")]
+    public float roomHeight = 11f;
 
     public GameObject[] plainRooms;
 
@@ -94,6 +111,8 @@ public class DungeonGenerator : MonoBehaviour
 
         AssignRoomDifficulties();
         BuildRoomConnections();
+        ComputeRoomOrientationsAndPrefabs();
+        ComputeRoomWorldPositions();
         SpawnRooms();
 
         Debug.Log(
@@ -362,6 +381,128 @@ public class DungeonGenerator : MonoBehaviour
         }
     }
 
+    // Pass 1: decide the prefab and final rotation for every room up front,
+    // before any positioning math happens. This is what lets the spacing
+    // pass below know each room's true world-space footprint in advance,
+    // and it stops SpawnRooms from re-rolling a different random prefab
+    // than the one the rotation was calculated for.
+    void ComputeRoomOrientationsAndPrefabs()
+    {
+        for (int i = 0; i < generatedRooms.Count; i++)
+        {
+            GeneratedRoom room = generatedRooms[i];
+
+            room.prefab = GetPrefabForRoom(room.difficulty);
+
+            if (room.prefab == null)
+            {
+                room.rotationY = 0f;
+                continue;
+            }
+
+            if (room.difficulty != RoomDifficulty.Plain)
+            {
+                RoomVariant variant =
+                    GetVariant(room.difficulty, room.prefab);
+
+                room.rotationY = variant != null
+                    ? CalculateRotation(room.incomingDir, variant.entryDoor)
+                    : 0f;
+            }
+            else
+            {
+                room.rotationY = 0f;
+            }
+        }
+    }
+
+    // Pass 2: walk the path and accumulate real world positions. Each step's
+    // distance is half of the previous room's footprint plus half of the
+    // current room's footprint, measured along the axis of travel - and the
+    // footprint swaps width/height whenever that room ended up rotated
+    // 90/270 degrees, so rectangular rooms never overlap or gap regardless
+    // of which way they were spun to line their doors up.
+    void ComputeRoomWorldPositions()
+    {
+        if (generatedRooms.Count == 0)
+        {
+            return;
+        }
+
+        Vector3 origin = startTransform != null
+            ? new Vector3(startTransform.position.x, dungeonOrigin.y, startTransform.position.z)
+            : dungeonOrigin;
+
+        generatedRooms[0].worldPosition = origin;
+
+        for (int i = 1; i < generatedRooms.Count; i++)
+        {
+            GeneratedRoom previous = generatedRooms[i - 1];
+            GeneratedRoom current = generatedRooms[i];
+
+            int direction =
+                DirectionBetween(
+                    previous.gridPosition,
+                    current.gridPosition
+                );
+
+            bool axisIsVertical =
+                (direction == 0 || direction == 1);
+
+            float previousExtent =
+                HalfExtentAlongAxis(previous, axisIsVertical);
+
+            float currentExtent =
+                HalfExtentAlongAxis(current, axisIsVertical);
+
+            float step = previousExtent + currentExtent;
+
+            Vector3 directionVector =
+                DirectionToWorldVector(direction);
+
+            current.worldPosition =
+                previous.worldPosition + directionVector * step;
+        }
+    }
+
+    float HalfExtentAlongAxis(GeneratedRoom room, bool axisIsVertical)
+    {
+        int rotationSteps =
+            Mathf.RoundToInt(room.rotationY / 90f);
+
+        bool swapped =
+            ((((rotationSteps % 4) + 4) % 4) % 2) != 0;
+
+        float worldWidth = swapped ? roomHeight : roomWidth;
+        float worldDepth = swapped ? roomWidth : roomHeight;
+
+        return (axisIsVertical ? worldDepth : worldWidth) * 0.5f;
+    }
+
+    Vector3 DirectionToWorldVector(int direction)
+    {
+        switch (direction)
+        {
+            case 0:
+
+                return new Vector3(0f, 0f, -1f);
+
+            case 1:
+
+                return new Vector3(0f, 0f, 1f);
+
+            case 2:
+
+                return new Vector3(1f, 0f, 0f);
+
+            case 3:
+
+                return new Vector3(-1f, 0f, 0f);
+        }
+
+        return Vector3.zero;
+    }
+
     void SpawnRooms()
     {
         for (int i = 0;
@@ -372,9 +513,7 @@ public class DungeonGenerator : MonoBehaviour
                 generatedRooms[i];
 
             GameObject prefab =
-                GetPrefabForRoom(
-                    room.difficulty
-                );
+                room.prefab;
 
             if (prefab == null)
             {
@@ -387,13 +526,7 @@ public class DungeonGenerator : MonoBehaviour
             }
 
             Vector3 targetPosition =
-                new Vector3(
-                    room.gridPosition.x *
-                    offset.x,
-                    0f,
-                    -room.gridPosition.y *
-                    offset.y
-                );
+                room.worldPosition;
 
             GameObject instance =
                 Instantiate(
@@ -403,62 +536,52 @@ public class DungeonGenerator : MonoBehaviour
                     transform
                 );
 
-            float rotationY = 0f;
+            float rotationY = room.rotationY;
 
-            if (room.difficulty !=
-                RoomDifficulty.Plain)
+            if (room.difficulty != RoomDifficulty.Plain &&
+                !Mathf.Approximately(rotationY, 0f))
             {
-                RoomVariant variant =
-                    GetVariant(
-                        room.difficulty,
-                        prefab
+                Bounds bounds =
+                    GetRendererBounds(
+                        instance
                     );
 
-                if (variant != null)
-                {
-                    rotationY =
-                        CalculateRotation(
-                            room.incomingDir,
-                            variant.entryDoor
-                        );
-
-                    Bounds bounds =
-                        GetRendererBounds(
-                            instance
-                        );
-
-                    instance.transform
-                        .RotateAround(
-                            bounds.center,
-                            Vector3.up,
-                            rotationY
-                        );
-
-                    Bounds rotatedBounds =
-                        GetRendererBounds(
-                            instance
-                        );
-
-                    Vector3 correction =
-                        targetPosition -
-                        rotatedBounds.center;
-
-                    correction.y = 0f;
-
-                    instance.transform.position +=
-                        correction;
-
-                    Debug.Log(
-                        room.difficulty +
-                        " ROOM " +
-                        i +
-                        " = " +
-                        prefab.name +
-                        " | Rotation: " +
+                instance.transform
+                    .RotateAround(
+                        bounds.center,
+                        Vector3.up,
                         rotationY
                     );
-                }
+
+                Debug.Log(
+                    room.difficulty +
+                    " ROOM " +
+                    i +
+                    " = " +
+                    prefab.name +
+                    " | Rotation: " +
+                    rotationY
+                );
             }
+
+            // Always re-center on the mesh bounds, not just when a room was
+            // rotated - a prefab pivot that isn't already centered (e.g. at
+            // a corner) would otherwise place the room offset from
+            // targetPosition instead of directly on it, which is what was
+            // making rooms spawn "in front of" the player instead of on them.
+            Bounds finalBounds =
+                GetRendererBounds(
+                    instance
+                );
+
+            Vector3 correction =
+                targetPosition -
+                finalBounds.center;
+
+            correction.y = 0f;
+
+            instance.transform.position +=
+                correction;
 
             bool[] localStatus =
                 RemapStatusForRotation(
