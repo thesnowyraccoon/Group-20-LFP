@@ -6,6 +6,7 @@ using UnityEngine.InputSystem;
 public class PlayerMovement : MonoBehaviour
 {
     CharacterController cc;
+    Transform cam;
 
     float moveScale = 1f;
 
@@ -14,25 +15,30 @@ public class PlayerMovement : MonoBehaviour
     bool jumpInput;
 
     [Header("Movement")]
-    public float walkMod = 8f;
-    public float sprintMod = 16f;
-
-    public float jumpForce = 8f;
+    public float walkMod = 5f;
+    public float sprintMod = 10f;
+    public float turnSmoothTime = 0.1f;
+    public float jumpForce = 5f;
     public float gravity = -9.8f;
 
-    float verticalVelocity;
+    Vector3 verticalVelocity;
+    float turnSmoothVelocity;
 
     void Awake()
     {
         cc = GetComponent<CharacterController>();
+        cam = FindAnyObjectByType<Camera>().transform;
+
         moveScale = walkMod;
+
+        Cursor.lockState = CursorLockMode.Locked;
     }
 
     void Update()
     {
         HandleMovement();
 
-        Debug.DrawRay(transform.position, Vector3.forward, Color.purple);
+        Debug.DrawRay(transform.position, transform.forward * 3f, Color.purple);
     }
 
     public void OnMovement(InputAction.CallbackContext context)
@@ -55,23 +61,40 @@ public class PlayerMovement : MonoBehaviour
         moveScale = sprintInput ? sprintMod : walkMod;
 
         Vector3 move = (transform.right * moveInput.x + transform.forward * moveInput.y) * moveScale;
+        Vector3 direction = new Vector3(moveInput.x, 0f, moveInput.y).normalized;
 
         if (cc.isGrounded)
         {
-            verticalVelocity = -1f;
+            Debug.Log("GROUND");
+
+            verticalVelocity.y = -1f;
 
             if (jumpInput)
             {
-                verticalVelocity = jumpForce;
+                verticalVelocity.y = jumpForce;
             }
         }
         else
         {
-            verticalVelocity += gravity * Time.deltaTime;
+            verticalVelocity.y += gravity * Time.deltaTime;
         }
 
-        move.y = verticalVelocity;
-        
-        cc.Move(move * Time.deltaTime);
+        cc.Move(verticalVelocity * Time.deltaTime);
+
+        //move.y = verticalVelocity;
+
+        //cc.Move(move * Time.deltaTime);
+
+        if (direction.magnitude >= 0.1f)
+        {
+            float targetAngle = Mathf.Atan2(direction.x, direction.z) * Mathf.Rad2Deg + cam.eulerAngles.y;
+            float angle = Mathf.SmoothDampAngle(transform.eulerAngles.y, targetAngle, ref turnSmoothVelocity, turnSmoothTime);
+
+            transform.rotation = Quaternion.Euler(0f, angle, 0f);
+
+            Vector3 moveDirection = Quaternion.Euler(0f, targetAngle, 0f) * Vector3.forward;
+
+            cc.Move(moveScale * Time.deltaTime * moveDirection.normalized);
+        }
     }
 }
