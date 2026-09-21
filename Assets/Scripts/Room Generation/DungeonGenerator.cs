@@ -22,41 +22,85 @@ public class DungeonGenerator : MonoBehaviour
     private class GeneratedRoom
     {
         public Vector2Int gridPosition;
+
         public RoomDifficulty difficulty;
+
         public int incomingDir = -1;
         public int outgoingDir = -1;
+
         public bool[] status = new bool[4];
 
-        // Filled in by ComputeRoomOrientationsAndPrefabs / ComputeRoomWorldPositions.
         public GameObject prefab;
+
         public float rotationY;
+
         public Vector3 worldPosition;
     }
+
+    [Header("Dungeon Settings")]
 
     [Min(7)]
     public int roomCount = 7;
 
     public Vector2Int gridSize = new Vector2Int(9, 9);
+
     public Vector2Int startPosition = new Vector2Int(4, 4);
 
-    [Header("Dungeon origin")]
-    [Tooltip("World position (X, Y and Z all support decimals) that the first room is centered on. For accurate placement, copy this from a reference room you've positioned by hand in the scene (e.g. your BASE room's Transform) rather than guessing - a hand-placed room is already sitting correctly on the ground, which the player's transform usually isn't (its pivot - feet, capsule center, etc. - rarely matches the exact height a room was authored at, which is what causes falling through the floor).")]
-    public Vector3 dungeonOrigin = Vector3.zero;
 
-    [Tooltip("Optional. If assigned, the dungeon's X and Z are taken from this transform every time the dungeon generates, while Y still comes from Dungeon Origin above. Leave empty to use Dungeon Origin exactly as entered.")]
+    [Header("Dungeon Origin")]
+
+    [Tooltip("The exact world position of the first room. Based on your manual calibration this is X 0, Y -0.81, Z -6.61.")]
+    public Vector3 dungeonOrigin =
+        new Vector3(0f, -0.81f, -6.61f);
+
+    [Tooltip("Optional. If assigned, the dungeon X and Z position will use this Transform instead of Dungeon Origin.")]
     public Transform startTransform;
 
-    [Header("Room footprint (world units, unrotated)")]
-    [Tooltip("Room size along local X before any rotation is applied.")]
+
+    [Header("Room Connection Spacing")]
+
+    [Tooltip("Horizontal centre-to-centre distance between rooms. Your manually measured value is 5.93.")]
+    public float horizontalRoomSpacing = 5.93f;
+
+    [Tooltip("Vertical centre-to-centre distance between rooms. Your manually measured value is 10.26.")]
+    public float verticalRoomSpacing = 10.26f;
+
+
+    [Header("Room Footprint")]
+
+    [Tooltip("Room width along local X.")]
     public float roomWidth = 6f;
-    [Tooltip("Room size along local Z before any rotation is applied (the long axis for straight challenge rooms).")]
+
+    [Tooltip("Room height along local Z.")]
     public float roomHeight = 11f;
+
+
+    [Header("Plain Rooms")]
 
     public GameObject[] plainRooms;
 
+
+    [Header("Easy Rooms")]
+
     public RoomVariant[] easyRooms;
+
+
+    [Header("Medium Rooms")]
+
     public RoomVariant[] mediumRooms;
+
+
+    [Header("Hard Rooms")]
+
     public RoomVariant[] hardRooms;
+
+
+    // Direction convention:
+    //
+    // 0 = Up    = +Z
+    // 1 = Down  = -Z
+    // 2 = Right = +X
+    // 3 = Left  = -X
 
     static readonly float[] directionAngle =
     {
@@ -66,24 +110,31 @@ public class DungeonGenerator : MonoBehaviour
         270f
     };
 
+
     List<GeneratedRoom> generatedRooms =
         new List<GeneratedRoom>();
+
 
     void Start()
     {
         GenerateDungeon();
     }
 
+
     void GenerateDungeon()
     {
-        Random.InitState(System.Environment.TickCount);
+        Random.InitState(
+            System.Environment.TickCount
+        );
 
         generatedRooms.Clear();
+
 
         if (roomCount < 7)
         {
             roomCount = 7;
         }
+
 
         if (plainRooms == null ||
             plainRooms.Length == 0)
@@ -95,10 +146,12 @@ public class DungeonGenerator : MonoBehaviour
             return;
         }
 
+
         if (!ValidateChallengeRooms())
         {
             return;
         }
+
 
         if (!GenerateControlledPath())
         {
@@ -109,11 +162,17 @@ public class DungeonGenerator : MonoBehaviour
             return;
         }
 
+
         AssignRoomDifficulties();
+
         BuildRoomConnections();
+
         ComputeRoomOrientationsAndPrefabs();
+
         ComputeRoomWorldPositions();
+
         SpawnRooms();
+
 
         Debug.Log(
             "Dungeon generated successfully with " +
@@ -121,6 +180,7 @@ public class DungeonGenerator : MonoBehaviour
             " rooms."
         );
     }
+
 
     bool ValidateChallengeRooms()
     {
@@ -134,6 +194,7 @@ public class DungeonGenerator : MonoBehaviour
             return false;
         }
 
+
         if (mediumRooms == null ||
             mediumRooms.Length < 2)
         {
@@ -143,6 +204,7 @@ public class DungeonGenerator : MonoBehaviour
 
             return false;
         }
+
 
         if (hardRooms == null ||
             hardRooms.Length < 2)
@@ -154,25 +216,33 @@ public class DungeonGenerator : MonoBehaviour
             return false;
         }
 
+
         return true;
     }
+
 
     bool GenerateControlledPath()
     {
         generatedRooms.Clear();
 
+
         HashSet<Vector2Int> occupied =
             new HashSet<Vector2Int>();
 
+
         occupied.Add(startPosition);
+
 
         generatedRooms.Add(
             new GeneratedRoom
             {
                 gridPosition = startPosition,
-                difficulty = RoomDifficulty.Plain
+
+                difficulty =
+                    RoomDifficulty.Plain
             }
         );
+
 
         return GeneratePathRecursive(
             1,
@@ -181,6 +251,7 @@ public class DungeonGenerator : MonoBehaviour
             occupied
         );
     }
+
 
     bool GeneratePathRecursive(
         int roomIndex,
@@ -193,21 +264,29 @@ public class DungeonGenerator : MonoBehaviour
             return true;
         }
 
+
         List<int> possibleDirections =
             GetAvailableDirections(
                 currentPosition,
                 occupied
             );
 
+
         Shuffle(possibleDirections);
+
 
         int currentRoomIndex =
             roomIndex - 1;
 
-        bool currentRoomIsChallenge =
-            IsChallengeIndex(currentRoomIndex);
 
-        foreach (int direction in possibleDirections)
+        bool currentRoomIsChallenge =
+            IsChallengeIndex(
+                currentRoomIndex
+            );
+
+
+        foreach (int direction
+                 in possibleDirections)
         {
             if (currentRoomIsChallenge)
             {
@@ -216,11 +295,13 @@ public class DungeonGenerator : MonoBehaviour
                     continue;
                 }
 
+
                 if (direction != previousDirection)
                 {
                     continue;
                 }
             }
+
 
             Vector2Int nextPosition =
                 MoveInDirection(
@@ -228,42 +309,58 @@ public class DungeonGenerator : MonoBehaviour
                     direction
                 );
 
-            if (occupied.Contains(nextPosition))
+
+            if (occupied.Contains(
+                    nextPosition))
             {
                 continue;
             }
 
+
             occupied.Add(nextPosition);
+
 
             GeneratedRoom newRoom =
                 new GeneratedRoom();
 
+
             newRoom.gridPosition =
                 nextPosition;
+
 
             newRoom.difficulty =
                 RoomDifficulty.Plain;
 
-            generatedRooms.Add(newRoom);
+
+            generatedRooms.Add(
+                newRoom
+            );
+
 
             if (GeneratePathRecursive(
-                roomIndex + 1,
-                nextPosition,
-                direction,
-                occupied))
+                    roomIndex + 1,
+                    nextPosition,
+                    direction,
+                    occupied))
             {
                 return true;
             }
 
-            occupied.Remove(nextPosition);
+
+            occupied.Remove(
+                nextPosition
+            );
+
 
             generatedRooms.RemoveAt(
                 generatedRooms.Count - 1
             );
         }
 
+
         return false;
     }
+
 
     bool IsChallengeIndex(int index)
     {
@@ -272,6 +369,7 @@ public class DungeonGenerator : MonoBehaviour
                index == 5;
     }
 
+
     void AssignRoomDifficulties()
     {
         if (generatedRooms.Count < 7)
@@ -279,27 +377,35 @@ public class DungeonGenerator : MonoBehaviour
             return;
         }
 
+
         generatedRooms[0].difficulty =
             RoomDifficulty.Plain;
+
 
         generatedRooms[1].difficulty =
             RoomDifficulty.Easy;
 
+
         generatedRooms[2].difficulty =
             RoomDifficulty.Plain;
+
 
         generatedRooms[3].difficulty =
             RoomDifficulty.Medium;
 
+
         generatedRooms[4].difficulty =
             RoomDifficulty.Plain;
+
 
         generatedRooms[5].difficulty =
             RoomDifficulty.Hard;
 
+
         generatedRooms[6].difficulty =
             RoomDifficulty.Plain;
     }
+
 
     void BuildRoomConnections()
     {
@@ -310,8 +416,12 @@ public class DungeonGenerator : MonoBehaviour
             GeneratedRoom room =
                 generatedRooms[i];
 
+
             room.status =
                 new bool[4];
+
+
+            // Incoming connection
 
             if (i > 0)
             {
@@ -319,21 +429,27 @@ public class DungeonGenerator : MonoBehaviour
                     generatedRooms[i - 1]
                     .gridPosition;
 
+
                 int directionFromPrevious =
                     DirectionBetween(
                         previous,
                         room.gridPosition
                     );
 
+
                 room.incomingDir =
                     Opposite(
                         directionFromPrevious
                     );
 
+
                 room.status[
                     room.incomingDir
                 ] = true;
             }
+
+
+            // Outgoing connection
 
             if (i <
                 generatedRooms.Count - 1)
@@ -342,16 +458,21 @@ public class DungeonGenerator : MonoBehaviour
                     generatedRooms[i + 1]
                     .gridPosition;
 
+
                 room.outgoingDir =
                     DirectionBetween(
                         room.gridPosition,
                         next
                     );
 
+
                 room.status[
                     room.outgoingDir
                 ] = true;
             }
+
+
+            // Validate challenge rooms
 
             if (room.difficulty !=
                 RoomDifficulty.Plain)
@@ -365,13 +486,15 @@ public class DungeonGenerator : MonoBehaviour
                     );
                 }
 
+
                 if (Opposite(
                         room.incomingDir) !=
                     room.outgoingDir)
                 {
                     Debug.LogError(
                         room.difficulty +
-                        " room is not straight. Incoming: " +
+                        " room is not straight. " +
+                        "Incoming: " +
                         room.incomingDir +
                         " Outgoing: " +
                         room.outgoingDir
@@ -381,33 +504,53 @@ public class DungeonGenerator : MonoBehaviour
         }
     }
 
-    // Pass 1: decide the prefab and final rotation for every room up front,
-    // before any positioning math happens. This is what lets the spacing
-    // pass below know each room's true world-space footprint in advance,
-    // and it stops SpawnRooms from re-rolling a different random prefab
-    // than the one the rotation was calculated for.
+
     void ComputeRoomOrientationsAndPrefabs()
     {
-        for (int i = 0; i < generatedRooms.Count; i++)
+        for (int i = 0;
+             i < generatedRooms.Count;
+             i++)
         {
-            GeneratedRoom room = generatedRooms[i];
+            GeneratedRoom room =
+                generatedRooms[i];
 
-            room.prefab = GetPrefabForRoom(room.difficulty);
+
+            room.prefab =
+                GetPrefabForRoom(
+                    room.difficulty
+                );
+
 
             if (room.prefab == null)
             {
                 room.rotationY = 0f;
+
                 continue;
             }
 
-            if (room.difficulty != RoomDifficulty.Plain)
+
+            if (room.difficulty !=
+                RoomDifficulty.Plain)
             {
                 RoomVariant variant =
-                    GetVariant(room.difficulty, room.prefab);
+                    GetVariant(
+                        room.difficulty,
+                        room.prefab
+                    );
 
-                room.rotationY = variant != null
-                    ? CalculateRotation(room.incomingDir, variant.entryDoor)
-                    : 0f;
+
+                if (variant != null)
+                {
+                    room.rotationY =
+                        CalculateRotation(
+                            room.incomingDir,
+                            variant.entryDoor
+                        );
+                }
+                else
+                {
+                    room.rotationY = 0f;
+                }
             }
             else
             {
@@ -416,12 +559,7 @@ public class DungeonGenerator : MonoBehaviour
         }
     }
 
-    // Pass 2: walk the path and accumulate real world positions. Each step's
-    // distance is half of the previous room's footprint plus half of the
-    // current room's footprint, measured along the axis of travel - and the
-    // footprint swaps width/height whenever that room ended up rotated
-    // 90/270 degrees, so rectangular rooms never overlap or gap regardless
-    // of which way they were spun to line their doors up.
+
     void ComputeRoomWorldPositions()
     {
         if (generatedRooms.Count == 0)
@@ -429,16 +567,41 @@ public class DungeonGenerator : MonoBehaviour
             return;
         }
 
-        Vector3 origin = startTransform != null
-            ? new Vector3(startTransform.position.x, dungeonOrigin.y, startTransform.position.z)
-            : dungeonOrigin;
 
-        generatedRooms[0].worldPosition = origin;
+        Vector3 origin;
 
-        for (int i = 1; i < generatedRooms.Count; i++)
+
+        if (startTransform != null)
         {
-            GeneratedRoom previous = generatedRooms[i - 1];
-            GeneratedRoom current = generatedRooms[i];
+            origin =
+                new Vector3(
+                    startTransform.position.x,
+                    dungeonOrigin.y,
+                    startTransform.position.z
+                );
+        }
+        else
+        {
+            origin =
+                dungeonOrigin;
+        }
+
+
+        generatedRooms[0].worldPosition =
+            origin;
+
+
+        for (int i = 1;
+             i < generatedRooms.Count;
+             i++)
+        {
+            GeneratedRoom previous =
+                generatedRooms[i - 1];
+
+
+            GeneratedRoom current =
+                generatedRooms[i];
+
 
             int direction =
                 DirectionBetween(
@@ -446,62 +609,91 @@ public class DungeonGenerator : MonoBehaviour
                     current.gridPosition
                 );
 
-            bool axisIsVertical =
-                (direction == 0 || direction == 1);
 
-            float previousExtent =
-                HalfExtentAlongAxis(previous, axisIsVertical);
+            float spacing;
 
-            float currentExtent =
-                HalfExtentAlongAxis(current, axisIsVertical);
 
-            float step = previousExtent + currentExtent;
+            // Horizontal movement
+
+            if (direction == 2 ||
+                direction == 3)
+            {
+                spacing =
+                    horizontalRoomSpacing;
+            }
+
+            // Vertical movement
+
+            else
+            {
+                spacing =
+                    verticalRoomSpacing;
+            }
+
 
             Vector3 directionVector =
-                DirectionToWorldVector(direction);
+                DirectionToWorldVector(
+                    direction
+                );
+
 
             current.worldPosition =
-                previous.worldPosition + directionVector * step;
+                previous.worldPosition +
+                directionVector *
+                spacing;
         }
     }
 
-    float HalfExtentAlongAxis(GeneratedRoom room, bool axisIsVertical)
-    {
-        int rotationSteps =
-            Mathf.RoundToInt(room.rotationY / 90f);
 
-        bool swapped =
-            ((((rotationSteps % 4) + 4) % 4) % 2) != 0;
-
-        float worldWidth = swapped ? roomHeight : roomWidth;
-        float worldDepth = swapped ? roomWidth : roomHeight;
-
-        return (axisIsVertical ? worldDepth : worldWidth) * 0.5f;
-    }
-
-    Vector3 DirectionToWorldVector(int direction)
+    Vector3 DirectionToWorldVector(
+        int direction)
     {
         switch (direction)
         {
-            case 0:
+            // Grid UP = World +Z
 
-                return new Vector3(0f, 0f, -1f);
+            case 0:
+                return new Vector3(
+                    0f,
+                    0f,
+                    1f
+                );
+
+
+            // Grid DOWN = World -Z
 
             case 1:
+                return new Vector3(
+                    0f,
+                    0f,
+                    -1f
+                );
 
-                return new Vector3(0f, 0f, 1f);
+
+            // Grid RIGHT = World +X
 
             case 2:
+                return new Vector3(
+                    1f,
+                    0f,
+                    0f
+                );
 
-                return new Vector3(1f, 0f, 0f);
+
+            // Grid LEFT = World -X
 
             case 3:
-
-                return new Vector3(-1f, 0f, 0f);
+                return new Vector3(
+                    -1f,
+                    0f,
+                    0f
+                );
         }
+
 
         return Vector3.zero;
     }
+
 
     void SpawnRooms()
     {
@@ -512,8 +704,10 @@ public class DungeonGenerator : MonoBehaviour
             GeneratedRoom room =
                 generatedRooms[i];
 
+
             GameObject prefab =
                 room.prefab;
+
 
             if (prefab == null)
             {
@@ -525,8 +719,10 @@ public class DungeonGenerator : MonoBehaviour
                 continue;
             }
 
+
             Vector3 targetPosition =
                 room.worldPosition;
+
 
             GameObject instance =
                 Instantiate(
@@ -536,15 +732,22 @@ public class DungeonGenerator : MonoBehaviour
                     transform
                 );
 
-            float rotationY = room.rotationY;
 
-            if (room.difficulty != RoomDifficulty.Plain &&
-                !Mathf.Approximately(rotationY, 0f))
+            float rotationY =
+                room.rotationY;
+
+
+            if (room.difficulty !=
+                RoomDifficulty.Plain &&
+                !Mathf.Approximately(
+                    rotationY,
+                    0f))
             {
                 Bounds bounds =
                     GetRendererBounds(
                         instance
                     );
+
 
                 instance.transform
                     .RotateAround(
@@ -552,6 +755,7 @@ public class DungeonGenerator : MonoBehaviour
                         Vector3.up,
                         rotationY
                     );
+
 
                 Debug.Log(
                     room.difficulty +
@@ -564,24 +768,34 @@ public class DungeonGenerator : MonoBehaviour
                 );
             }
 
-            // Always re-center on the mesh bounds, not just when a room was
-            // rotated - a prefab pivot that isn't already centered (e.g. at
-            // a corner) would otherwise place the room offset from
-            // targetPosition instead of directly on it, which is what was
-            // making rooms spawn "in front of" the player instead of on them.
+
+            // Re-centre the room after rotation.
+            //
+            // This prevents a prefab with an offset
+            // pivot from shifting away from the
+            // calculated connection position.
+
             Bounds finalBounds =
                 GetRendererBounds(
                     instance
                 );
 
+
             Vector3 correction =
                 targetPosition -
                 finalBounds.center;
 
+
             correction.y = 0f;
+
 
             instance.transform.position +=
                 correction;
+
+
+            // Convert world connection directions
+            // back into the room's local directions
+            // after rotation.
 
             bool[] localStatus =
                 RemapStatusForRotation(
@@ -589,10 +803,12 @@ public class DungeonGenerator : MonoBehaviour
                     rotationY
                 );
 
+
             RoomBehaviour behaviour =
                 instance.GetComponent<
                     RoomBehaviour
                 >();
+
 
             if (behaviour != null)
             {
@@ -609,6 +825,7 @@ public class DungeonGenerator : MonoBehaviour
                 );
             }
 
+
             instance.name =
                 GetRoomName(
                     room.difficulty
@@ -617,6 +834,7 @@ public class DungeonGenerator : MonoBehaviour
                 i;
         }
     }
+
 
     GameObject GetPrefabForRoom(
         RoomDifficulty difficulty)
@@ -629,17 +847,20 @@ public class DungeonGenerator : MonoBehaviour
                     easyRooms
                 );
 
+
             case RoomDifficulty.Medium:
 
                 return PickRandomVariant(
                     mediumRooms
                 );
 
+
             case RoomDifficulty.Hard:
 
                 return PickRandomVariant(
                     hardRooms
                 );
+
 
             default:
 
@@ -652,6 +873,7 @@ public class DungeonGenerator : MonoBehaviour
         }
     }
 
+
     GameObject PickRandomVariant(
         RoomVariant[] variants)
     {
@@ -661,6 +883,7 @@ public class DungeonGenerator : MonoBehaviour
             return null;
         }
 
+
         RoomVariant selected =
             variants[
                 Random.Range(
@@ -669,19 +892,24 @@ public class DungeonGenerator : MonoBehaviour
                 )
             ];
 
+
         if (selected == null)
         {
             return null;
         }
 
+
         return selected.prefab;
     }
+
 
     RoomVariant GetVariant(
         RoomDifficulty difficulty,
         GameObject prefab)
     {
-        RoomVariant[] variants = null;
+        RoomVariant[] variants =
+            null;
+
 
         switch (difficulty)
         {
@@ -691,11 +919,13 @@ public class DungeonGenerator : MonoBehaviour
 
                 break;
 
+
             case RoomDifficulty.Medium:
 
                 variants = mediumRooms;
 
                 break;
+
 
             case RoomDifficulty.Hard:
 
@@ -704,10 +934,12 @@ public class DungeonGenerator : MonoBehaviour
                 break;
         }
 
+
         if (variants == null)
         {
             return null;
         }
+
 
         foreach (RoomVariant variant
                  in variants)
@@ -719,8 +951,10 @@ public class DungeonGenerator : MonoBehaviour
             }
         }
 
+
         return null;
     }
+
 
     float CalculateRotation(
         int worldEntryDirection,
@@ -731,6 +965,7 @@ public class DungeonGenerator : MonoBehaviour
         {
             return 0f;
         }
+
 
         return NormalizeAngle(
             directionAngle[
@@ -743,12 +978,14 @@ public class DungeonGenerator : MonoBehaviour
         );
     }
 
+
     bool[] RemapStatusForRotation(
         bool[] worldStatus,
         float rotationY)
     {
         bool[] localStatus =
             new bool[4];
+
 
         for (int worldDirection = 0;
              worldDirection < 4;
@@ -760,6 +997,7 @@ public class DungeonGenerator : MonoBehaviour
                 continue;
             }
 
+
             int localDirection =
                 IndexFromAngle(
                     directionAngle[
@@ -769,6 +1007,7 @@ public class DungeonGenerator : MonoBehaviour
                     rotationY
                 );
 
+
             if (localDirection >= 0)
             {
                 localStatus[
@@ -777,15 +1016,23 @@ public class DungeonGenerator : MonoBehaviour
             }
         }
 
+
         return localStatus;
     }
 
-    int IndexFromAngle(float angle)
+
+    int IndexFromAngle(
+        float angle)
     {
         angle =
-            NormalizeAngle(angle);
+            NormalizeAngle(
+                angle
+            );
 
-        for (int i = 0; i < 4; i++)
+
+        for (int i = 0;
+             i < 4;
+             i++)
         {
             if (Mathf.Approximately(
                 directionAngle[i],
@@ -795,8 +1042,10 @@ public class DungeonGenerator : MonoBehaviour
             }
         }
 
+
         return -1;
     }
+
 
     List<int> GetAvailableDirections(
         Vector2Int position,
@@ -804,6 +1053,7 @@ public class DungeonGenerator : MonoBehaviour
     {
         List<int> directions =
             new List<int>();
+
 
         for (int direction = 0;
              direction < 4;
@@ -815,21 +1065,29 @@ public class DungeonGenerator : MonoBehaviour
                     direction
                 );
 
+
             if (!IsInsideGrid(next))
             {
                 continue;
             }
 
-            if (occupied.Contains(next))
+
+            if (occupied.Contains(
+                    next))
             {
                 continue;
             }
 
-            directions.Add(direction);
+
+            directions.Add(
+                direction
+            );
         }
+
 
         return directions;
     }
+
 
     Vector2Int MoveInDirection(
         Vector2Int position,
@@ -837,20 +1095,31 @@ public class DungeonGenerator : MonoBehaviour
     {
         switch (direction)
         {
+            // Up
+
             case 0:
 
                 return position +
                        Vector2Int.up;
+
+
+            // Down
 
             case 1:
 
                 return position +
                        Vector2Int.down;
 
+
+            // Right
+
             case 2:
 
                 return position +
                        Vector2Int.right;
+
+
+            // Left
 
             case 3:
 
@@ -858,8 +1127,10 @@ public class DungeonGenerator : MonoBehaviour
                        Vector2Int.left;
         }
 
+
         return position;
     }
+
 
     int DirectionBetween(
         Vector2Int from,
@@ -868,11 +1139,13 @@ public class DungeonGenerator : MonoBehaviour
         Vector2Int difference =
             to - from;
 
+
         if (difference ==
             Vector2Int.up)
         {
             return 0;
         }
+
 
         if (difference ==
             Vector2Int.down)
@@ -880,11 +1153,13 @@ public class DungeonGenerator : MonoBehaviour
             return 1;
         }
 
+
         if (difference ==
             Vector2Int.right)
         {
             return 2;
         }
+
 
         if (difference ==
             Vector2Int.left)
@@ -892,10 +1167,13 @@ public class DungeonGenerator : MonoBehaviour
             return 3;
         }
 
+
         return -1;
     }
 
-    int Opposite(int direction)
+
+    int Opposite(
+        int direction)
     {
         switch (direction)
         {
@@ -903,21 +1181,26 @@ public class DungeonGenerator : MonoBehaviour
 
                 return 1;
 
+
             case 1:
 
                 return 0;
 
+
             case 2:
 
                 return 3;
+
 
             case 3:
 
                 return 2;
         }
 
+
         return -1;
     }
+
 
     bool IsInsideGrid(
         Vector2Int position)
@@ -928,9 +1211,12 @@ public class DungeonGenerator : MonoBehaviour
                position.y < gridSize.y;
     }
 
-    void Shuffle(List<int> list)
+
+    void Shuffle(
+        List<int> list)
     {
-        for (int i = list.Count - 1;
+        for (int i =
+                 list.Count - 1;
              i > 0;
              i--)
         {
@@ -940,28 +1226,36 @@ public class DungeonGenerator : MonoBehaviour
                     i + 1
                 );
 
+
             int temporary =
                 list[i];
 
+
             list[i] =
                 list[randomIndex];
+
 
             list[randomIndex] =
                 temporary;
         }
     }
 
-    float NormalizeAngle(float angle)
+
+    float NormalizeAngle(
+        float angle)
     {
         angle %= 360f;
+
 
         if (angle < 0f)
         {
             angle += 360f;
         }
 
+
         return angle;
     }
+
 
     Bounds GetRendererBounds(
         GameObject go)
@@ -971,6 +1265,7 @@ public class DungeonGenerator : MonoBehaviour
                 Renderer
             >();
 
+
         if (renderers.Length == 0)
         {
             return new Bounds(
@@ -979,8 +1274,10 @@ public class DungeonGenerator : MonoBehaviour
             );
         }
 
+
         Bounds bounds =
             renderers[0].bounds;
+
 
         for (int i = 1;
              i < renderers.Length;
@@ -991,8 +1288,10 @@ public class DungeonGenerator : MonoBehaviour
             );
         }
 
+
         return bounds;
     }
+
 
     string GetRoomName(
         RoomDifficulty difficulty)
@@ -1003,13 +1302,16 @@ public class DungeonGenerator : MonoBehaviour
 
                 return "EasyRoom";
 
+
             case RoomDifficulty.Medium:
 
                 return "MediumRoom";
 
+
             case RoomDifficulty.Hard:
 
                 return "HardRoom";
+
 
             default:
 
