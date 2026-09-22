@@ -37,8 +37,6 @@ public class PlayerMovement : MonoBehaviour
     void Update()
     {
         HandleMovement();
-
-        Debug.DrawRay(transform.position, transform.forward * 3f, Color.purple);
     }
 
     public void OnMovement(InputAction.CallbackContext context)
@@ -60,12 +58,11 @@ public class PlayerMovement : MonoBehaviour
     {
         moveScale = sprintInput ? sprintMod : walkMod;
 
-        Vector3 move = (transform.right * moveInput.x + transform.forward * moveInput.y) * moveScale;
         Vector3 direction = new Vector3(moveInput.x, 0f, moveInput.y).normalized;
 
         if (cc.isGrounded)
         {
-            Debug.Log("GROUND");
+            //Debug.Log("GROUND");
 
             verticalVelocity.y = -1f;
 
@@ -80,10 +77,6 @@ public class PlayerMovement : MonoBehaviour
         }
 
         cc.Move(verticalVelocity * Time.deltaTime);
-
-        //move.y = verticalVelocity;
-
-        //cc.Move(move * Time.deltaTime);
 
         if (direction.magnitude >= 0.1f)
         {
