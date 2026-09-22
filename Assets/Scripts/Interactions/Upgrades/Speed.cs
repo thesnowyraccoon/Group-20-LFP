@@ -1,16 +1,30 @@
 using UnityEngine;
 
-public class Speed : MonoBehaviour
+public class Speed : MonoBehaviour, IInteractable
 {
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
-    void Start()
+    PlayerMovement player;
+
+    public float speedUpgrade = 3f;
+    
+    void Awake()
     {
-        
+        player = GameObject.FindGameObjectWithTag("Player").GetComponent<PlayerMovement>();
     }
 
-    // Update is called once per frame
-    void Update()
+    public void Interact(Collider col)
     {
-        
+        if (player != null)
+        {
+            Debug.Log("Picked up Speed");
+
+            player.walkMod += speedUpgrade;
+            player.sprintMod += speedUpgrade;
+
+            Destroy(gameObject);
+        }
+        else
+        {
+            Debug.LogWarning("Player not found");
+        }
     }
 }

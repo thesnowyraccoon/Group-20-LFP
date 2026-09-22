@@ -5,8 +5,9 @@ using UnityEngine.XR;
 public class PlayerInteractions : MonoBehaviour
 {
     public IInteractable interactable;
-    public LayerMask interactMask;
 
+    public LayerMask interactMask;
+    public GameObject interactIcon;
     public float range = 2f;
 
     bool interactInput;
@@ -35,10 +36,12 @@ public class PlayerInteractions : MonoBehaviour
         if (interactableInRange)
         {
             // Shows interact UI/GUI
+            interactIcon.SetActive(true);
         }
         else
         {
             // Shows nothing
+            interactIcon.SetActive(false);
         }
 
         if (interactableInRange && interactable.CanPickup())
