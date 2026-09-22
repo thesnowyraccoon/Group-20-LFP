@@ -35,6 +35,11 @@ public class DungeonGenerator : MonoBehaviour
         public float rotationY;
 
         public Vector3 worldPosition;
+
+        // The actual instantiated room in the scene. Needed so we can
+        // hand the room list off to RoomChainManager for show/hide and
+        // so exit doors can be parented under the right room.
+        public GameObject spawnedInstance;
     }
 
     [Header("Dungeon Settings")]
@@ -93,6 +98,18 @@ public class DungeonGenerator : MonoBehaviour
     [Header("Hard Rooms")]
 
     public RoomVariant[] hardRooms;
+
+
+    [Header("Room Isolation (Cult of the Lamb style)")]
+
+    [Tooltip("Size of the trigger volume placed at each doorway, along the door's own width.")]
+    public float doorTriggerWidth = 1.6f;
+
+    [Tooltip("Height of the trigger volume placed at each doorway.")]
+    public float doorTriggerHeight = 2.5f;
+
+    [Tooltip("Depth of the trigger volume placed at each doorway (how far the player must step through).")]
+    public float doorTriggerDepth = 1.5f;
 
 
     // Direction convention:
@@ -172,6 +189,8 @@ public class DungeonGenerator : MonoBehaviour
         ComputeRoomWorldPositions();
 
         SpawnRooms();
+
+        InitializeRoomChain();
 
 
         Debug.Log(
@@ -733,6 +752,10 @@ public class DungeonGenerator : MonoBehaviour
                 );
 
 
+            room.spawnedInstance =
+                instance;
+
+
             float rotationY =
                 room.rotationY;
 
@@ -826,6 +849,17 @@ public class DungeonGenerator : MonoBehaviour
             }
 
 
+            // Doors are placed using world-space directions,
+            // so they don't need to care about the room's
+            // visual rotation.
+
+            CreateExitTriggers(
+                room,
+                instance,
+                i
+            );
+
+
             instance.name =
                 GetRoomName(
                     room.difficulty
@@ -833,6 +867,181 @@ public class DungeonGenerator : MonoBehaviour
                 "_" +
                 i;
         }
+    }
+
+
+    /// <summary>
+    /// Adds trigger volumes at this room's doorway(s) so the player can
+    /// walk between rooms. Each door only exists on the side that
+    /// actually connects to a neighbouring room.
+    /// </summary>
+    void CreateExitTriggers(
+        GeneratedRoom room,
+        GameObject instance,
+        int index)
+    {
+        if (room.outgoingDir >= 0 &&
+            index + 1 < generatedRooms.Count)
+        {
+            AddExitTrigger(
+                instance,
+                room.worldPosition,
+                room.outgoingDir,
+                index + 1,
+                room.outgoingDir
+            );
+        }
+
+
+        if (room.incomingDir >= 0 &&
+            index - 1 >= 0)
+        {
+            AddExitTrigger(
+                instance,
+                room.worldPosition,
+                room.incomingDir,
+                index - 1,
+                room.incomingDir
+            );
+        }
+    }
+
+
+    void AddExitTrigger(
+        GameObject instance,
+        Vector3 roomWorldPosition,
+        int doorWorldDirection,
+        int targetRoomIndex,
+        int travelDirection)
+    {
+        GameObject door =
+            new GameObject(
+                "Exit_" + doorWorldDirection
+            );
+
+
+        // worldPositionStays = true so the trigger keeps its
+        // world-space position/rotation regardless of how the
+        // room prefab itself is rotated.
+
+        door.transform.SetParent(
+            instance.transform,
+            true
+        );
+
+
+        bool horizontal =
+            doorWorldDirection == 2 ||
+            doorWorldDirection == 3;
+
+
+        float halfExtent =
+            horizontal ?
+            roomWidth * 0.5f :
+            roomHeight * 0.5f;
+
+
+        Vector3 offset =
+            DirectionToWorldVector(
+                doorWorldDirection
+            ) * halfExtent;
+
+
+        door.transform.position =
+            roomWorldPosition + offset;
+
+
+        door.transform.rotation =
+            Quaternion.identity;
+
+
+        BoxCollider box =
+            door.AddComponent<BoxCollider>();
+
+
+        box.isTrigger = true;
+
+
+        box.size = horizontal ?
+            new Vector3(
+                doorTriggerDepth,
+                doorTriggerHeight,
+                doorTriggerWidth
+            ) :
+            new Vector3(
+                doorTriggerWidth,
+                doorTriggerHeight,
+                doorTriggerDepth
+            );
+
+
+        RoomExitTrigger exit =
+            door.AddComponent<RoomExitTrigger>();
+
+
+        exit.targetRoomIndex =
+            targetRoomIndex;
+
+
+        exit.worldDirection =
+            travelDirection;
+    }
+
+
+    /// <summary>
+    /// Hands the finished room list to RoomChainManager, which hides
+    /// every room except the first one and handles transitions from
+    /// then on. If no manager exists in the scene, all rooms stay
+    /// visible (falls back to the old behaviour).
+    /// </summary>
+    void InitializeRoomChain()
+    {
+        if (RoomChainManager.Instance == null)
+        {
+            Debug.LogWarning(
+                "DungeonGenerator: No RoomChainManager found in the scene. " +
+                "Add one to an empty GameObject to enable one-room-at-a-time isolation."
+            );
+
+            return;
+        }
+
+
+        List<RoomChainManager.RoomEntry> entries =
+            new List<RoomChainManager.RoomEntry>();
+
+
+        foreach (GeneratedRoom room in generatedRooms)
+        {
+            entries.Add(
+                new RoomChainManager.RoomEntry
+                {
+                    instance = room.spawnedInstance,
+                    worldPosition = room.worldPosition,
+                    incomingDir = room.incomingDir,
+                    outgoingDir = room.outgoingDir
+                }
+            );
+        }
+
+
+        CharacterController playerController =
+            FindAnyObjectByType<CharacterController>();
+
+
+        if (playerController == null)
+        {
+            Debug.LogWarning(
+                "DungeonGenerator: No CharacterController found in the scene for RoomChainManager to move."
+            );
+        }
+
+
+        RoomChainManager.Instance.Initialize(
+            entries,
+            0,
+            playerController
+        );
     }
 
 

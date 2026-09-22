@@ -14,6 +14,10 @@ public class PlayerMovement : MonoBehaviour
     bool sprintInput;
     bool jumpInput;
 
+    // Set by RoomChainManager while a room transition is playing, so the
+    // player can't walk/jump during the fade.
+    bool inputLocked;
+
     [Header("Movement")]
     public float walkMod = 5f;
     public float sprintMod = 10f;
@@ -56,8 +60,29 @@ public class PlayerMovement : MonoBehaviour
         sprintInput = context.ReadValue<float>() > 0;
     }
 
+    /// <summary>
+    /// Called by RoomChainManager to freeze/unfreeze movement while a
+    /// room transition (fade + teleport) is playing.
+    /// </summary>
+    public void SetInputLocked(bool locked)
+    {
+        inputLocked = locked;
+
+        if (locked)
+        {
+            moveInput = Vector2.zero;
+            sprintInput = false;
+            jumpInput = false;
+        }
+    }
+
     void HandleMovement()
     {
+        if (inputLocked)
+        {
+            return;
+        }
+
         moveScale = sprintInput ? sprintMod : walkMod;
 
         Vector3 move = (transform.right * moveInput.x + transform.forward * moveInput.y) * moveScale;

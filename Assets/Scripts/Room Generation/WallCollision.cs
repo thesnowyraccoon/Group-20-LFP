@@ -1,23 +1,43 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 
 public class WallCollision : MonoBehaviour
 {
-    // Start is called before the first frame update
-    void Start()
+    private void Start()
     {
-        Collider[] colliders = Physics.OverlapSphere(transform.position, .01f);
+        Collider[] colliders =
+            Physics.OverlapBox(
+                transform.position,
+                GetHalfExtents(),
+                transform.rotation
+            );
 
         foreach (Collider collider in colliders)
         {
-            if(collider.tag == "Wall")
+            if (collider == null)
+                continue;
+
+            if (collider.CompareTag("Wall"))
             {
                 Destroy(gameObject);
                 return;
             }
         }
+    }
 
-        GetComponent<Collider>().enabled = true;
+
+    Vector3 GetHalfExtents()
+    {
+        BoxCollider box =
+            GetComponent<BoxCollider>();
+
+        if (box != null)
+        {
+            return Vector3.Scale(
+                box.size * 0.5f,
+                transform.lossyScale
+            );
+        }
+
+        return Vector3.one * 0.01f;
     }
 }
