@@ -1,8 +1,7 @@
-using Unity.Mathematics;
-using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
+[RequireComponent(typeof(CharacterController))]
 public class PlayerMovement : MonoBehaviour
 {
     CharacterController cc;
@@ -14,7 +13,7 @@ public class PlayerMovement : MonoBehaviour
     bool sprintInput;
     bool jumpInput;
 
-    // Set by RoomChainManager while a room transition is playing, so the
+    // Set by RoomChainManager while a room transition is playing, so the 
     // player can't walk/jump during the fade.
     bool inputLocked;
 
@@ -30,32 +29,30 @@ public class PlayerMovement : MonoBehaviour
 
     void Awake()
     {
-        cc = GetComponent<CharacterController>();
-        cam = FindAnyObjectByType<Camera>().transform;
+        cc = GetComponent<CharacterController>();       // finds character controller
+        cam = FindAnyObjectByType<Camera>().transform;  // finds player camera
 
-        moveScale = walkMod;
+        moveScale = walkMod;    // sets movement speed to default walk speed
 
-        Cursor.lockState = CursorLockMode.Locked;
+        Cursor.lockState = CursorLockMode.Locked;   // locks cursor to screen
     }
 
     void Update()
     {
-        HandleMovement();
-
-        Debug.DrawRay(transform.position, transform.forward * 3f, Color.purple);
+        HandleMovement();   // handles player movement
     }
 
-    public void OnMovement(InputAction.CallbackContext context)
+    public void OnMovement(InputAction.CallbackContext context)     // detects movement input 
     {
         moveInput = context.ReadValue<Vector2>();
     }
 
-    public void OnJump(InputAction.CallbackContext context)
+    public void OnJump(InputAction.CallbackContext context)     // detects jump input
     {
         jumpInput = context.performed;
     }
 
-    public void OnSprint(InputAction.CallbackContext context)
+    public void OnSprint(InputAction.CallbackContext context)   // detects sprint key input
     {
         sprintInput = context.ReadValue<float>() > 0;
     }
@@ -76,50 +73,46 @@ public class PlayerMovement : MonoBehaviour
         }
     }
 
-    void HandleMovement()
+    void HandleMovement()   // handles player movement, jumping, sprinting
     {
         if (inputLocked)
         {
             return;
         }
 
-        moveScale = sprintInput ? sprintMod : walkMod;
+        moveScale = sprintInput ? sprintMod : walkMod;  // checks whether player is sprinting
 
-        Vector3 move = (transform.right * moveInput.x + transform.forward * moveInput.y) * moveScale;
-        Vector3 direction = new Vector3(moveInput.x, 0f, moveInput.y).normalized;
+        Vector3 direction = new Vector3(moveInput.x, 0f, moveInput.y).normalized;   // direction of movement 
 
-        if (cc.isGrounded)
+        if (cc.isGrounded)  // checks if player is on the ground and applies forces accordingly
         {
-            Debug.Log("GROUND");
+            //Debug.Log("GROUND");
 
-            verticalVelocity.y = -1f;
+            verticalVelocity.y = -1f;   // small force ensuring player is grounded
 
             if (jumpInput)
             {
-                verticalVelocity.y = jumpForce;
+                verticalVelocity.y = jumpForce;     // adds jump force when jump input is detected
             }
         }
         else
         {
-            verticalVelocity.y += gravity * Time.deltaTime;
+            verticalVelocity.y += gravity * Time.deltaTime;     // if player is not on the ground apply gravity to them
         }
 
-        cc.Move(verticalVelocity * Time.deltaTime);
+        cc.Move(verticalVelocity * Time.deltaTime);     // vertical force applied to player
 
-        //move.y = verticalVelocity;
-
-        //cc.Move(move * Time.deltaTime);
-
-        if (direction.magnitude >= 0.1f)
+        if (direction.magnitude >= 0.1f)    // if input is detected, move player
         {
+            // angle of movement according to camera direction
             float targetAngle = Mathf.Atan2(direction.x, direction.z) * Mathf.Rad2Deg + cam.eulerAngles.y;
             float angle = Mathf.SmoothDampAngle(transform.eulerAngles.y, targetAngle, ref turnSmoothVelocity, turnSmoothTime);
 
-            transform.rotation = Quaternion.Euler(0f, angle, 0f);
+            transform.rotation = Quaternion.Euler(0f, angle, 0f);   // turn player based on movement angle
 
-            Vector3 moveDirection = Quaternion.Euler(0f, targetAngle, 0f) * Vector3.forward;
+            Vector3 moveDirection = Quaternion.Euler(0f, targetAngle, 0f) * Vector3.forward;    // direction of movement
 
-            cc.Move(moveScale * Time.deltaTime * moveDirection.normalized);
+            cc.Move(moveScale * Time.deltaTime * moveDirection.normalized); // apply horizontal movement
         }
     }
 }
