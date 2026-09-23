@@ -12,7 +12,7 @@ GameObject:
   - component: {fileID: 5320036673490662738}
   - component: {fileID: 8650676429603688817}
   - component: {fileID: 5255640504777943515}
-  m_Layer: 0
+  m_Layer: 3
   m_Name: Cube (3)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -124,7 +124,7 @@ GameObject:
   - component: {fileID: 6830155422418694864}
   - component: {fileID: 4875482805671062085}
   - component: {fileID: 6261908048181412815}
-  m_Layer: 0
+  m_Layer: 3
   m_Name: Cube (1)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -236,7 +236,7 @@ GameObject:
   - component: {fileID: 8447851570014158928}
   - component: {fileID: 8612075415760427085}
   - component: {fileID: 3172854828643963510}
-  m_Layer: 0
+  m_Layer: 3
   m_Name: Cube (2)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -348,7 +348,7 @@ GameObject:
   - component: {fileID: 1822409638355146540}
   - component: {fileID: 1068908326405920256}
   - component: {fileID: 7934850248765537242}
-  m_Layer: 0
+  m_Layer: 3
   m_Name: Cube
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -460,7 +460,7 @@ GameObject:
   - component: {fileID: 992023682092189368}
   - component: {fileID: 6011845748901309319}
   - component: {fileID: 7880320340384668172}
-  m_Layer: 0
+  m_Layer: 3
   m_Name: Cube (5)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -572,7 +572,7 @@ GameObject:
   - component: {fileID: 1011166832132544877}
   - component: {fileID: 3227864026724613201}
   - component: {fileID: 3890229189899864245}
-  m_Layer: 0
+  m_Layer: 3
   m_Name: Cube (4)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -684,7 +684,7 @@ GameObject:
   - component: {fileID: 2936113545760077001}
   - component: {fileID: 5055082298728332325}
   - component: {fileID: 550089835027982411}
-  m_Layer: 0
+  m_Layer: 3
   m_Name: Cube (6)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -837,7 +837,8 @@ PrefabInstance:
       value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
-    m_RemovedGameObjects: []
+    m_RemovedGameObjects:
+    - {fileID: 8254877212291950044, guid: b84aee064f2741e45ae830e88c0e64ea, type: 3}
     m_AddedGameObjects:
     - targetCorrespondingSourceObject: {fileID: 5731923286068924800, guid: b84aee064f2741e45ae830e88c0e64ea, type: 3}
       insertIndex: -1

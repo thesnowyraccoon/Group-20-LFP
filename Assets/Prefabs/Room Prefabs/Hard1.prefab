@@ -12,7 +12,7 @@ GameObject:
   - component: {fileID: 8017191937319122228}
   - component: {fileID: 4228547205689745129}
   - component: {fileID: 7416569782723201680}
-  m_Layer: 0
+  m_Layer: 3
   m_Name: Capsule
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -167,7 +167,9 @@ PrefabInstance:
       value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
-    m_RemovedGameObjects: []
+    m_RemovedGameObjects:
+    - {fileID: 8254877212291950044, guid: b84aee064f2741e45ae830e88c0e64ea, type: 3}
+    - {fileID: 1700132596204448524, guid: b84aee064f2741e45ae830e88c0e64ea, type: 3}
     m_AddedGameObjects:
     - targetCorrespondingSourceObject: {fileID: 5731923286068924800, guid: b84aee064f2741e45ae830e88c0e64ea, type: 3}
       insertIndex: -1
