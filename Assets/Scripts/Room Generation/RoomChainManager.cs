@@ -46,6 +46,9 @@ public class RoomChainManager : MonoBehaviour
     int currentIndex;
     bool isTransitioning;
 
+    public int CurrentRoomIndex => currentIndex;
+    public int TotalRooms => rooms != null ? rooms.Count : 0;
+
     CharacterController player;
     Transform playerTransform;
 
