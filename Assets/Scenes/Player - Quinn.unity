@@ -162,8 +162,8 @@ MonoBehaviour:
       Owner: {fileID: 493932543}
       Enabled: 1
       Input:
-        InputAction: {fileID: -3981973999567685821, guid: 0cb2dea534fadf147ac8e78ebd9d42a2, type: 3}
-        Gain: 5
+        InputAction: {fileID: 765482150951512608, guid: 0cb2dea534fadf147ac8e78ebd9d42a2, type: 3}
+        Gain: 12
         CancelDeltaTime: 0
       InputValue: 0
       Driver:
@@ -173,8 +173,8 @@ MonoBehaviour:
       Owner: {fileID: 493932543}
       Enabled: 1
       Input:
-        InputAction: {fileID: -3981973999567685821, guid: 0cb2dea534fadf147ac8e78ebd9d42a2, type: 3}
-        Gain: 3
+        InputAction: {fileID: 765482150951512608, guid: 0cb2dea534fadf147ac8e78ebd9d42a2, type: 3}
+        Gain: 10
         CancelDeltaTime: 0
       InputValue: 0
       Driver:
@@ -184,8 +184,8 @@ MonoBehaviour:
       Owner: {fileID: 493932543}
       Enabled: 1
       Input:
-        InputAction: {fileID: 7695446467928101912, guid: 0cb2dea534fadf147ac8e78ebd9d42a2, type: 3}
-        Gain: -1
+        InputAction: {fileID: 1782926199794283811, guid: 0cb2dea534fadf147ac8e78ebd9d42a2, type: 3}
+        Gain: 5
         CancelDeltaTime: 0
       InputValue: 0
       Driver:
@@ -453,6 +453,7 @@ MonoBehaviour:
   turnSmoothTime: 0.1
   jumpForce: 5
   gravity: -9.8
+  maxJumps: 1
 --- !u!143 &640898293
 CharacterController:
   m_ObjectHideFlags: 0
@@ -536,14 +537,6 @@ MonoBehaviour:
     m_ActionId: 91a76e3b-87f0-4bff-81d4-8be4ade699b3
     m_ActionName: 'Player/Jump[/Keyboard/space]'
   - m_PersistentCalls:
-      m_Calls: []
-    m_ActionId: e4aac555-fa11-4c84-af0b-213c36780bb2
-    m_ActionName: 'Player/Look[/Mouse/delta]'
-  - m_PersistentCalls:
-      m_Calls: []
-    m_ActionId: 12914d3e-f73b-4861-a241-9c53577b4e6e
-    m_ActionName: 'Player/Zoom[/Mouse/scroll]'
-  - m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 640898295}
         m_TargetAssemblyTypeName: PlayerInteractions, Assembly-CSharp
@@ -577,8 +570,16 @@ MonoBehaviour:
     m_ActionName: 'Player/Sprint[/Keyboard/leftShift]'
   - m_PersistentCalls:
       m_Calls: []
-    m_ActionId: 5dd798eb-b8d3-4222-bc6a-7dfcbbe729d1
-    m_ActionName: 'Player/Crouch[/Keyboard/leftCtrl,/Keyboard/c]'
+    m_ActionId: 06b8dbf6-2a5a-4974-afef-b01c9f075d1c
+    m_ActionName: 'Player/Pause[/Keyboard/escape]'
+  - m_PersistentCalls:
+      m_Calls: []
+    m_ActionId: d03964f0-fb50-4138-889c-83c764c8e1c0
+    m_ActionName: 'Player/Look[/Mouse/delta]'
+  - m_PersistentCalls:
+      m_Calls: []
+    m_ActionId: 5477cc86-125d-4236-923e-5f379ab0ca94
+    m_ActionName: 'Player/Zoom[/Mouse/scroll]'
   m_NeverAutoSwitchControlSchemes: 0
   m_DefaultControlScheme: Keyboard&Mouse
   m_DefaultActionMap: Player
