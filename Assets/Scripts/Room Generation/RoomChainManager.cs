@@ -7,7 +7,7 @@ using UnityEngine.UI;
 /// Implement this on a camera-follow script if your camera lerps/smooths
 /// toward the player. RoomChainManager will call SnapToTarget() right
 /// after teleporting the player so the camera doesn't visibly "catch up"
-/// while the screen fades back in. Optional — safe to leave unimplemented.
+/// while the screen fades back in. Optional - safe to leave unimplemented.
 /// </summary>
 public interface ICameraSnap
 {
@@ -32,6 +32,11 @@ public class RoomChainManager : MonoBehaviour
         public Vector3 worldPosition;
         public int incomingDir = -1;
         public int outgoingDir = -1;
+
+        // Real half-size of the room (distance from the middle to the wall).
+        // Filled in by DungeonGenerator.
+        public float halfWidth;   // along world X
+        public float halfHeight;  // along world Z
     }
 
     [Header("Transition")]
@@ -39,8 +44,8 @@ public class RoomChainManager : MonoBehaviour
     [Tooltip("Seconds to fade to black, and again to fade back in.")]
     public float fadeDuration = 0.35f;
 
-    [Tooltip("How far inside the room, from the doorway, the player is placed after a transition.")]
-    public float spawnInset = 2f;
+    [Tooltip("How far inside the room, measured from the doorway wall, the player appears after a transition.")]
+    public float spawnInset = 3f;
 
     List<RoomEntry> rooms = new List<RoomEntry>();
     int currentIndex;
@@ -169,15 +174,23 @@ public class RoomChainManager : MonoBehaviour
     {
         if (player == null || playerTransform == null) return;
 
-        Vector3 doorDirWorld = DirectionToWorldVector(travelDirection);
+        Vector3 travelDirWorld = DirectionToWorldVector(travelDirection);
 
-        // Step the player in just past the doorway, facing the direction
-        // they were already walking, so it reads as continuous movement.
-        Vector3 spawnPosition = room.worldPosition - doorDirWorld * spawnInset;
+        // The player enters through the wall they are walking away from,
+        // i.e. the wall on the OPPOSITE side of the travel direction.
+        // Distance from the room's middle to that wall:
+        bool movingSideways = (travelDirection == 2 || travelDirection == 3);
+        float halfToDoor = movingSideways ? room.halfWidth : room.halfHeight;
+
+        // Start at the door wall, then step inward by spawnInset.
+        // Never go past the middle of the room.
+        float distanceFromMiddle = Mathf.Max(0f, halfToDoor - spawnInset);
+
+        Vector3 spawnPosition = room.worldPosition - travelDirWorld * distanceFromMiddle;
         spawnPosition.y = playerTransform.position.y;
 
-        Quaternion facing = doorDirWorld.sqrMagnitude > 0f
-            ? Quaternion.LookRotation(doorDirWorld, Vector3.up)
+        Quaternion facing = travelDirWorld.sqrMagnitude > 0f
+            ? Quaternion.LookRotation(travelDirWorld, Vector3.up)
             : playerTransform.rotation;
 
         // The CharacterController resists direct transform changes while
