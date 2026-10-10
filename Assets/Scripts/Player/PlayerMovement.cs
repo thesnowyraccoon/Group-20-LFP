@@ -13,7 +13,7 @@ public class PlayerMovement : MonoBehaviour
 
     Vector2 moveInput;
     bool sprintInput;
-    bool jumpInput;
+    // bool jumpInput;
 
     // Set by RoomChainManager while a room transition is playing, so the 
     // player can't walk/jump during the fade.
@@ -82,7 +82,7 @@ public class PlayerMovement : MonoBehaviour
         {
             moveInput = Vector2.zero;
             sprintInput = false;
-            jumpInput = false;
+            // jumpInput = false;
         }
     }
 
