@@ -475,8 +475,8 @@ MonoBehaviour:
   walkMod: 10
   sprintMod: 20
   turnSmoothTime: 0.1
-  jumpForce: 5
-  gravity: -9.8
+  jumpForce: 10
+  gravity: -11.8
 --- !u!114 &785316745
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1191,7 +1191,10 @@ MonoBehaviour:
   fadeDuration: 0.35
   spawnInset: 2
   doorCooldown: 0.75
+  enableFallSafety: 1
   fallLimit: 12
+  pitFallLimit: 100
+  insideRoomMargin: 2
   groundSearchRadius: 8
 --- !u!4 &1710096773
 Transform:
@@ -2471,7 +2474,7 @@ Transform:
   m_GameObject: {fileID: 2013083645}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0.6, y: -21.7, z: -0.1}
+  m_LocalPosition: {x: 0.6, y: -56.5, z: -0.1}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -2542,6 +2545,7 @@ MonoBehaviour:
   doorTriggerHeight: 2.5
   doorTriggerDepth: 1.5
   doorTriggerOffset: 0.5
+  doorTriggerSideMargin: 0.25
   floorObjectName: Floor
 --- !u!4 &2110360901
 Transform:
