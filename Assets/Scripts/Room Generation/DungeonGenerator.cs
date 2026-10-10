@@ -28,6 +28,9 @@ public class DungeonGenerator : MonoBehaviour
         // Real size of the room in the world (measured after it is placed + rotated).
         public float halfWidth;   // half size along world X
         public float halfHeight;  // half size along world Z
+
+        // Height of the top of the room's floor in the world.
+        public float floorTopY;
     }
 
     [Header("Dungeon Settings")]
@@ -76,10 +79,22 @@ public class DungeonGenerator : MonoBehaviour
     [Tooltip("Depth of the trigger (how far the player walks into it). It sits just INSIDE the room, touching the wall.")]
     public float doorTriggerDepth = 1.5f;
 
+    [Tooltip("Slides every door trigger along the doorway. Positive = toward the wall/outside, negative = further into the room. Use this to fine-tune.")]
+    public float doorTriggerOffset = 0.5f;
+
+    [Tooltip("Extra width added to each side of the doorway opening when the script can find the doorway in the prefab.")]
+    public float doorTriggerSideMargin = 0.25f;
+
+    [Tooltip("Name of the floor object inside your room prefabs. The room is measured from this, so lamps and pillars can't throw the size off.")]
+    public string floorObjectName = "Floor";
+
     // 0 = Up (+Z), 1 = Down (-Z), 2 = Right (+X), 3 = Left (-X)
     static readonly float[] directionAngle = { 0f, 180f, 90f, 270f };
 
     List<GeneratedRoom> generatedRooms = new List<GeneratedRoom>();
+
+    float referenceFloorTopY;
+    bool hasReferenceFloor;
 
     void Start()
     {
@@ -90,6 +105,7 @@ public class DungeonGenerator : MonoBehaviour
     {
         Random.InitState(System.Environment.TickCount);
         generatedRooms.Clear();
+        hasReferenceFloor = false;
 
         if (roomCount < 7) roomCount = 7;
 
@@ -400,17 +416,48 @@ public class DungeonGenerator : MonoBehaviour
                 Debug.Log(room.difficulty + " ROOM " + i + " = " + prefab.name + " | Rotation: " + rotationY);
             }
 
-            // Re-centre the room after rotation so its middle sits on worldPosition.
-            Bounds finalBounds = GetRendererBounds(instance);
-            Vector3 correction = targetPosition - finalBounds.center;
+            // Centre the room using its FLOOR, not every renderer.
+            // Lamps, pillars and door frames can stick out on one side and
+            // would push the room off-centre, which moves the doors.
+            Bounds floorBounds;
+            bool floorFound = TryGetFloorBounds(instance, out floorBounds);
+
+            if (!floorFound)
+            {
+                Debug.LogWarning("DungeonGenerator: no object named '" + floorObjectName +
+                                 "' found in " + prefab.name + ". Using the whole room instead.");
+            }
+
+            Vector3 correction = targetPosition - floorBounds.center;
             correction.y = 0f;
+
+            // Keep every room's floor at the same height so the player
+            // never spawns inside or under the floor of a different room.
+            if (floorFound)
+            {
+                if (!hasReferenceFloor)
+                {
+                    referenceFloorTopY = floorBounds.max.y;
+                    hasReferenceFloor = true;
+                }
+                else
+                {
+                    correction.y = referenceFloorTopY - floorBounds.max.y;
+                }
+            }
+
             instance.transform.position += correction;
 
-            // Measure the room AFTER it is rotated and centred.
-            // These are the real half-sizes used to place the door triggers.
-            finalBounds = GetRendererBounds(instance);
-            room.halfWidth = finalBounds.extents.x;
-            room.halfHeight = finalBounds.extents.z;
+            // Measure again after moving. These are the real numbers used
+            // for the door triggers and the player's spawn point.
+            TryGetFloorBounds(instance, out floorBounds);
+            room.halfWidth = floorBounds.extents.x;
+            room.halfHeight = floorBounds.extents.z;
+            room.floorTopY = floorBounds.max.y;
+
+            Debug.Log("Room " + i + " (" + prefab.name + ") floor size: " +
+                      (room.halfWidth * 2f) + " x " + (room.halfHeight * 2f) +
+                      " | floor found: " + floorFound);
 
             bool[] localStatus = RemapStatusForRotation(room.status, rotationY);
 
@@ -448,21 +495,52 @@ public class DungeonGenerator : MonoBehaviour
 
         bool horizontal = (doorDirection == 2 || doorDirection == 3);
 
-        // Distance from the room's middle to the wall, using the REAL measured size.
-        float halfToWall = horizontal ? room.halfWidth : room.halfHeight;
+        // Distance from the room's middle to the edge of the floor.
+        float halfToEdge = horizontal ? room.halfWidth : room.halfHeight;
 
-        // Sit the trigger just inside the wall, not half buried in it.
-        float centreDistance = Mathf.Max(0f, halfToWall - doorTriggerDepth * 0.5f);
+        // Trigger covers the last stretch of floor before the doorway, and
+        // reaches slightly into the doorway itself (see Door Trigger Offset).
+        float centreDistance = Mathf.Max(0f, halfToEdge - doorTriggerDepth * 0.5f + doorTriggerOffset);
 
-        door.transform.position = room.worldPosition + DirectionToWorldVector(doorDirection) * centreDistance;
+        Vector3 triggerPosition = room.worldPosition + DirectionToWorldVector(doorDirection) * centreDistance;
+
+        // Height is based on the real floor, so it always covers the player's body.
+        triggerPosition.y = room.floorTopY + doorTriggerHeight * 0.5f - 0.25f;
+
+        float triggerWidth = doorTriggerWidth;
+
+        // Best case: line the trigger up with the prefab's own doorway
+        // (North_Door / South_Door / East_Door / West_Door), so it matches
+        // the real opening exactly instead of relying on the floor edge.
+        Vector3 doorCentre;
+        float doorwayWidth;
+
+        if (TryGetDoorway(instance, room, doorDirection, out doorCentre, out doorwayWidth))
+        {
+            Vector3 outward = DirectionToWorldVector(doorDirection);
+            float keepY = triggerPosition.y;
+
+            triggerPosition = doorCentre + outward * (doorTriggerOffset - doorTriggerDepth * 0.5f);
+            triggerPosition.y = keepY;
+
+            triggerWidth = doorwayWidth + doorTriggerSideMargin * 2f;
+        }
+        else
+        {
+            Debug.LogWarning("DungeonGenerator: could not find the doorway object in " +
+                             instance.name + " for direction " + doorDirection +
+                             ". Using the floor edge instead.");
+        }
+
+        door.transform.position = triggerPosition;
         door.transform.rotation = Quaternion.identity;
 
         BoxCollider box = door.AddComponent<BoxCollider>();
         box.isTrigger = true;
 
         Vector3 worldSize = horizontal
-            ? new Vector3(doorTriggerDepth, doorTriggerHeight, doorTriggerWidth)
-            : new Vector3(doorTriggerWidth, doorTriggerHeight, doorTriggerDepth);
+            ? new Vector3(doorTriggerDepth, doorTriggerHeight, triggerWidth)
+            : new Vector3(triggerWidth, doorTriggerHeight, doorTriggerDepth);
 
         // If the room prefab is scaled, a collider's size gets scaled too.
         // Divide that out so the trigger is exactly the size typed in the inspector.
@@ -498,7 +576,8 @@ public class DungeonGenerator : MonoBehaviour
                 incomingDir = room.incomingDir,
                 outgoingDir = room.outgoingDir,
                 halfWidth = room.halfWidth,
-                halfHeight = room.halfHeight
+                halfHeight = room.halfHeight,
+                floorTopY = room.floorTopY
             });
         }
 
@@ -670,6 +749,100 @@ public class DungeonGenerator : MonoBehaviour
         angle %= 360f;
         if (angle < 0f) angle += 360f;
         return angle;
+    }
+
+    /// <summary>
+    /// Finds the doorway opening of a room in WORLD space, using the prefab's
+    /// own door trigger objects (North_Door, South_Door, East_Door, West_Door).
+    /// </summary>
+    bool TryGetDoorway(GameObject instance, GeneratedRoom room, int worldDirection, out Vector3 centre, out float width)
+    {
+        centre = Vector3.zero;
+        width = 0f;
+
+        // Which side of the PREFAB is this world direction, after rotation?
+        int localDir = IndexFromAngle(directionAngle[worldDirection] - room.rotationY);
+        if (localDir < 0) return false;
+
+        string[] names = { "North_Door", "South_Door", "East_Door", "West_Door" };
+
+        Transform doorway = FindShallowestChild(instance.transform, names[localDir]);
+        if (doorway == null) return false;
+
+        BoxCollider doorBox = doorway.GetComponent<BoxCollider>();
+        if (doorBox == null) return false;
+
+        // Work out the doorway box in world space from its 8 corners.
+        // (Done by hand because a disabled collider reports empty bounds.)
+        Vector3 min = new Vector3(float.MaxValue, float.MaxValue, float.MaxValue);
+        Vector3 max = new Vector3(float.MinValue, float.MinValue, float.MinValue);
+
+        for (int i = 0; i < 8; i++)
+        {
+            Vector3 sign = new Vector3(
+                (i & 1) == 0 ? -1f : 1f,
+                (i & 2) == 0 ? -1f : 1f,
+                (i & 4) == 0 ? -1f : 1f
+            );
+
+            Vector3 localCorner = doorBox.center + Vector3.Scale(doorBox.size * 0.5f, sign);
+            Vector3 worldCorner = doorway.TransformPoint(localCorner);
+
+            min = Vector3.Min(min, worldCorner);
+            max = Vector3.Max(max, worldCorner);
+        }
+
+        centre = (min + max) * 0.5f;
+
+        bool horizontal = (worldDirection == 2 || worldDirection == 3);
+        width = horizontal ? (max.z - min.z) : (max.x - min.x);
+
+        return width > 0.05f;
+    }
+
+    bool TryGetFloorBounds(GameObject room, out Bounds bounds)
+    {
+        Transform floor = FindShallowestChild(room.transform, floorObjectName);
+
+        if (floor != null)
+        {
+            Renderer[] renderers = floor.GetComponentsInChildren<Renderer>();
+
+            if (renderers.Length > 0)
+            {
+                bounds = renderers[0].bounds;
+
+                for (int i = 1; i < renderers.Length; i++)
+                {
+                    bounds.Encapsulate(renderers[i].bounds);
+                }
+
+                return true;
+            }
+        }
+
+        bounds = GetRendererBounds(room);
+        return false;
+    }
+
+    Transform FindShallowestChild(Transform root, string childName)
+    {
+        Queue<Transform> queue = new Queue<Transform>();
+        queue.Enqueue(root);
+
+        while (queue.Count > 0)
+        {
+            Transform current = queue.Dequeue();
+
+            if (current != root && current.name == childName) return current;
+
+            foreach (Transform child in current)
+            {
+                queue.Enqueue(child);
+            }
+        }
+
+        return null;
     }
 
     Bounds GetRendererBounds(GameObject go)
