@@ -513,8 +513,8 @@ Transform:
   m_GameObject: {fileID: 785316742}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 0.50406545, y: 0.571, z: 0.5443461}
+  m_LocalPosition: {x: 0.0010975, y: 0.13, z: 0.0010612}
+  m_LocalScale: {x: 0.7810375, y: 1.0372881, z: 0.84030926}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 883600287}
@@ -932,8 +932,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 937376429}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.45898202, y: -6.862663e-23, z: 3.545337e-23, w: 0.8884456}
-  m_LocalPosition: {x: 0, y: 6.309605, z: -4.476901}
+  m_LocalRotation: {x: 0.5349871, y: -0.000000009257959, z: 0.0000000058623755, w: 0.84486026}
+  m_LocalPosition: {x: 0.0010975, y: 9.594998, z: -4.47584}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -1148,10 +1148,10 @@ MonoBehaviour:
   Orbits:
     Top:
       Radius: 4
-      Height: 7
+      Height: 10
     Center:
       Radius: 6
-      Height: 2
+      Height: 5
     Bottom:
       Radius: 4
       Height: 0
@@ -1238,8 +1238,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1357694305}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.458982, y: -8.053663e-23, z: 5.8507396e-23, w: 0.8884456}
-  m_LocalPosition: {x: 0, y: 6.309605, z: -4.476901}
+  m_LocalRotation: {x: 0.53498703, y: -0.000000009257956, z: 0.0000000058623737, w: 0.8448603}
+  m_LocalPosition: {x: 0.0010975, y: 9.594998, z: -4.47584}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -2590,14 +2590,14 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DungeonGenerator
   roomCount: 7
-  gridSize: {x: 8, y: 13}
+  gridSize: {x: 10, y: 20}
   startPosition: {x: 0, y: 0}
   dungeonOrigin: {x: 0, y: -0.81, z: -6.61}
   startTransform: {fileID: 785316743}
   horizontalRoomSpacing: 11.16
   verticalRoomSpacing: 10.16
   roomWidth: 8
-  roomHeight: 13
+  roomHeight: 20
   plainRooms:
   - {fileID: 1809495234291153031, guid: b84aee064f2741e45ae830e88c0e64ea, type: 3}
   easyRooms:
