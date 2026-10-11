@@ -5,7 +5,9 @@ TagManager:
   serializedVersion: 3
   tags:
   - Wall
-  - Enemy
+  - Combat Room
+  - 'Platform and Combat Room '
+  - 'Platforming Room '
   layers:
   - Default
   - TransparentFX
