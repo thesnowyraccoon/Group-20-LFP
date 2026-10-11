@@ -47,13 +47,13 @@ public class PlayerAttack : MonoBehaviour
         StartCoroutine(AttackCooldown());
     }
 
-    void OnCollisionEnter(Collision collision)
+    private void OnTriggerEnter(Collider trigger)
     {
-        if (collision == null) return;
+        if (trigger == null) return;
         
-        if (collision.gameObject.CompareTag("Enemy"))
+        if (trigger.gameObject.CompareTag("Enemy"))
         {
-            DealDamage(collision.gameObject);
+            DealDamage(trigger.gameObject);
         }
     }
 
