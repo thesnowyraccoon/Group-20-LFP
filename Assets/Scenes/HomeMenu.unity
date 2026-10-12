@@ -3414,7 +3414,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: 10}
+  m_AnchoredPosition: {x: 0, y: -3}
   m_SizeDelta: {x: 850, y: 420}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &2037405093
@@ -3437,17 +3437,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: 'WASD     MOVE
-
-
-    SHIFT     SPRINT
-
-
-    SPACE     JUMP
-
-
-    MOUSE    
-    LOOK'
+  m_text: "WASD     MOVE\n\nSHIFT     SPRINT\n\nSPACE     JUMP\n\nMOUSE\tLOOK\n\nE\tINTERACT"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 02f981e5bda3e3c44b59cef0e63c370c, type: 2}
   m_sharedMaterial: {fileID: -280134756096974549, guid: 02f981e5bda3e3c44b59cef0e63c370c, type: 2}
@@ -3474,8 +3464,8 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 34
-  m_fontSizeBase: 34
+  m_fontSize: 30
+  m_fontSizeBase: 30
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 18

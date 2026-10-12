@@ -1,4 +1,6 @@
+using System.Collections;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
 
 [RequireComponent(typeof(CharacterController))]
@@ -11,7 +13,7 @@ public class PlayerMovement : MonoBehaviour
 
     Vector2 moveInput;
     bool sprintInput;
-    bool jumpInput;
+    // bool jumpInput;
 
     // Set by RoomChainManager while a room transition is playing, so the 
     // player can't walk/jump during the fade.
@@ -23,6 +25,9 @@ public class PlayerMovement : MonoBehaviour
     public float turnSmoothTime = 0.1f;
     public float jumpForce = 5f;
     public float gravity = -9.8f;
+
+    public int maxJumps = 1;
+    private int numberOfJumps;
 
     Vector3 verticalVelocity;
     float turnSmoothVelocity;
@@ -49,7 +54,15 @@ public class PlayerMovement : MonoBehaviour
 
     public void OnJump(InputAction.CallbackContext context)     // detects jump input
     {
-        jumpInput = context.performed;
+        // jumpInput = context.performed;
+
+        if (!context.started) return;
+        if (!IsGrounded() && numberOfJumps >= maxJumps) return;
+        if (numberOfJumps == 0) StartCoroutine(WaitForLanding());
+
+        numberOfJumps++;
+
+        verticalVelocity.y = jumpForce;
     }
 
     public void OnSprint(InputAction.CallbackContext context)   // detects sprint key input
@@ -69,7 +82,7 @@ public class PlayerMovement : MonoBehaviour
         {
             moveInput = Vector2.zero;
             sprintInput = false;
-            jumpInput = false;
+            // jumpInput = false;
         }
     }
 
@@ -84,16 +97,14 @@ public class PlayerMovement : MonoBehaviour
 
         Vector3 direction = new Vector3(moveInput.x, 0f, moveInput.y).normalized;   // direction of movement 
 
-        if (cc.isGrounded)  // checks if player is on the ground and applies forces accordingly
+        if (IsGrounded() && verticalVelocity.y < 0.0f)  // checks if player is on the ground and applies forces accordingly
         {
-            //Debug.Log("GROUND");
-
             verticalVelocity.y = -1f;   // small force ensuring player is grounded
 
-            if (jumpInput)
-            {
-                verticalVelocity.y = jumpForce;     // adds jump force when jump input is detected
-            }
+            // if (jumpInput)
+            // {
+            //     verticalVelocity.y = jumpForce;     // adds jump force when jump input is detected
+            // } 
         }
         else
         {
@@ -115,4 +126,14 @@ public class PlayerMovement : MonoBehaviour
             cc.Move(moveScale * Time.deltaTime * moveDirection.normalized); // apply horizontal movement
         }
     }
+
+    private IEnumerator WaitForLanding()
+    {
+        yield return new WaitUntil(() => !IsGrounded());
+        yield return new WaitUntil(IsGrounded);
+
+        numberOfJumps = 0;
+    }
+
+    private bool IsGrounded() => cc.isGrounded;
 }
