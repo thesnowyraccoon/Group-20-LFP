@@ -270,6 +270,19 @@ public class RoomChainManager : MonoBehaviour
 
         Vector3 nominal = room.worldPosition - travelDirWorld * distanceFromMiddle;
 
+        // The generator aligns exits with authored doorways, which may be offset
+        // from the floor centre. Arrive inside that same doorway, past its trigger.
+        Physics.SyncTransforms();
+        foreach (RoomExitTrigger exit in room.instance.GetComponentsInChildren<RoomExitTrigger>())
+        {
+            if (exit.worldDirection != (travelDirection ^ 1)) continue;
+            BoxCollider doorway = exit.GetComponent<BoxCollider>();
+            float triggerHalfDepth = movingSideways ? doorway.bounds.extents.x : doorway.bounds.extents.z;
+            float radius = player.radius * Mathf.Max(Mathf.Abs(playerTransform.lossyScale.x), Mathf.Abs(playerTransform.lossyScale.z));
+            nominal = doorway.bounds.center + travelDirWorld * Mathf.Max(spawnInset, triggerHalfDepth + radius + 0.25f);
+            break;
+        }
+
         // Find real solid ground near that spot (the floor may have pits or rocks).
         Vector3 spawnPosition = FindGroundedSpawn(nominal, travelDirWorld, room);
 

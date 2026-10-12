@@ -136,4 +136,11 @@ public class PlayerMovement : MonoBehaviour
     }
 
     private bool IsGrounded() => cc.isGrounded;
+
+    public void OnTeleported()
+    {
+        StopAllCoroutines();
+        verticalVelocity = Vector3.zero;
+        numberOfJumps = 0;
+    }
 }
