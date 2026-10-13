@@ -156,10 +156,11 @@ public class RoomChainManager : MonoBehaviour
             RoomEntry startRoom = rooms[currentIndex];
 
             Vector3 nominal = playerTransform.position;
-            Vector3 position = FindGroundedSpawn(nominal, Vector3.forward, startRoom);
-
-            MovePlayer(position, playerTransform.rotation);
-            RememberSafeSpot(position, playerTransform.rotation);
+            if (TryFindGroundedSpawn(nominal, Vector3.forward, startRoom, out Vector3 position))
+            {
+                MovePlayer(position, playerTransform.rotation);
+                RememberSafeSpot(position, playerTransform.rotation);
+            }
         }
     }
 
@@ -229,6 +230,7 @@ public class RoomChainManager : MonoBehaviour
 
         yield return Fade(0f, 1f);
 
+        int previousIndex = currentIndex;
         if (rooms[currentIndex].instance != null)
         {
             rooms[currentIndex].instance.SetActive(false);
@@ -241,7 +243,14 @@ public class RoomChainManager : MonoBehaviour
             rooms[currentIndex].instance.SetActive(true);
         }
 
-        PlaceInRoom(rooms[currentIndex], travelDirection);
+        if (!PlaceInRoom(rooms[currentIndex], travelDirection))
+        {
+            rooms[currentIndex].instance.SetActive(false);
+            currentIndex = previousIndex;
+            rooms[currentIndex].instance.SetActive(true);
+            RespawnAtLastSafeSpot();
+            Debug.LogWarning("Room transition cancelled: destination has no safe landing near its doorway.");
+        }
 
         Camera sceneCamera = FindAnyObjectByType<Camera>();
         ICameraSnap camSnap = sceneCamera != null ? sceneCamera.GetComponent<ICameraSnap>() : null;
@@ -255,9 +264,9 @@ public class RoomChainManager : MonoBehaviour
         isTransitioning = false;
     }
 
-    void PlaceInRoom(RoomEntry room, int travelDirection)
+    bool PlaceInRoom(RoomEntry room, int travelDirection)
     {
-        if (player == null || playerTransform == null) return;
+        if (player == null || playerTransform == null) return false;
 
         Vector3 travelDirWorld = DirectionToWorldVector(travelDirection);
 
@@ -284,7 +293,7 @@ public class RoomChainManager : MonoBehaviour
         }
 
         // Find real solid ground near that spot (the floor may have pits or rocks).
-        Vector3 spawnPosition = FindGroundedSpawn(nominal, travelDirWorld, room);
+        if (!TryFindGroundedSpawn(nominal, travelDirWorld, room, out Vector3 spawnPosition)) return false;
 
         Quaternion facing = travelDirWorld.sqrMagnitude > 0f
             ? Quaternion.LookRotation(travelDirWorld, Vector3.up)
@@ -292,6 +301,7 @@ public class RoomChainManager : MonoBehaviour
 
         MovePlayer(spawnPosition, facing);
         RememberSafeSpot(spawnPosition, facing);
+        return true;
     }
 
     /// <summary>
@@ -299,7 +309,7 @@ public class RoomChainManager : MonoBehaviour
     /// Searches further into the room and to the sides if the first spot has no ground.
     /// Returns a position for the player's transform (not the feet).
     /// </summary>
-    Vector3 FindGroundedSpawn(Vector3 nominal, Vector3 inward, RoomEntry room)
+    bool TryFindGroundedSpawn(Vector3 nominal, Vector3 inward, RoomEntry room, out Vector3 position)
     {
         Physics.SyncTransforms();
 
@@ -308,7 +318,12 @@ public class RoomChainManager : MonoBehaviour
         inward.Normalize();
 
         Vector3 sideways = new Vector3(inward.z, 0f, -inward.x);
-        float[] lateral = { 0f, 1.5f, -1.5f, 3f, -3f };
+        var lateral = new List<float> { 0f };
+        for (float offset = 1.5f; offset <= groundSearchRadius; offset += 1.5f)
+        {
+            lateral.Add(offset);
+            lateral.Add(-offset);
+        }
 
         for (float step = 0f; step <= groundSearchRadius; step += 1f)
         {
@@ -316,54 +331,54 @@ public class RoomChainManager : MonoBehaviour
             {
                 Vector3 candidate = nominal + inward * step + sideways * side;
 
-                if (TryFindGround(candidate, room.floorTopY, out float groundY))
+                if (TryFindGround(candidate, room, out float groundY))
                 {
-                    return new Vector3(candidate.x, GroundToTransformY(groundY), candidate.z);
+                    Vector3 landing = new Vector3(candidate.x, GroundToTransformY(groundY), candidate.z);
+                    if (!HasLandingClearance(landing, room, groundY)) continue;
+                    position = landing;
+                    return true;
                 }
             }
         }
 
-        Debug.LogWarning("RoomChainManager: no solid ground found near the spawn point. " +
-                         "Using the floor height instead.");
-
-        return new Vector3(nominal.x, GroundToTransformY(room.floorTopY), nominal.z);
+        position = default;
+        return false;
     }
 
-    bool TryFindGround(Vector3 point, float floorTopY, out float groundY)
+    bool TryFindGround(Vector3 point, RoomEntry room, out float groundY)
     {
-        groundY = 0f;
-
-        Vector3 origin = new Vector3(point.x, floorTopY + 6f, point.z);
-
-        RaycastHit[] hits = Physics.RaycastAll(
-            origin,
-            Vector3.down,
-            30f,
-            ~0,
-            QueryTriggerInteraction.Ignore
-        );
-
-        bool found = false;
-        float best = float.MinValue;
-
-        foreach (RaycastHit hit in hits)
+        groundY = float.MinValue;
+        // Entrances may use raised rocks/platforms above the base floor. Keep
+        // the search below wall tops and above the deliberately lowered pits.
+        Vector3 origin = new Vector3(point.x, room.floorTopY + 4f, point.z);
+        foreach (RaycastHit hit in Physics.RaycastAll(origin, Vector3.down, 5f, ~0, QueryTriggerInteraction.Ignore))
         {
-            if (playerTransform != null && hit.collider.transform.IsChildOf(playerTransform)) continue;
-            if (hit.normal.y < 0.5f) continue;
-
-            // Only accept ground close to the floor height, so wall tops,
-            // pillars and rocks are never picked as the spawn surface.
-            if (hit.point.y < floorTopY - 1f || hit.point.y > floorTopY + 0.5f) continue;
-
-            if (hit.point.y > best)
-            {
-                best = hit.point.y;
-                found = true;
-            }
+            if (!hit.collider.transform.IsChildOf(room.instance.transform)) continue;
+            if (hit.normal.y < Mathf.Cos(player.slopeLimit * Mathf.Deg2Rad)) continue;
+            if (hit.point.y < room.floorTopY - 1f || hit.point.y > room.floorTopY + 3f) continue;
+            groundY = Mathf.Max(groundY, hit.point.y);
         }
+        return groundY > float.MinValue;
+    }
 
-        if (found) groundY = best;
-        return found;
+    bool HasLandingClearance(Vector3 position, RoomEntry room, float groundY)
+    {
+        float radius = player.radius * Mathf.Max(Mathf.Abs(playerTransform.lossyScale.x), Mathf.Abs(playerTransform.lossyScale.z));
+        // Check support around the feet too, so a ray hitting a narrow edge
+        // cannot approve a capsule hanging over the pit.
+        foreach (Vector3 offset in new[] { Vector3.right, Vector3.left, Vector3.forward, Vector3.back })
+        {
+            if (!TryFindGround(position + offset * radius, room, out float supportY) || Mathf.Abs(supportY - groundY) > 0.35f)
+                return false;
+        }
+        float height = Mathf.Max(player.height * Mathf.Abs(playerTransform.lossyScale.y), radius * 2f);
+        Vector3 bottom = new Vector3(position.x, groundY + radius + 0.08f, position.z);
+        Vector3 top = bottom + Vector3.up * (height - radius * 2f);
+        foreach (Collider obstacle in Physics.OverlapCapsule(bottom, top, radius * 0.95f, ~0, QueryTriggerInteraction.Ignore))
+        {
+            if (!obstacle.transform.IsChildOf(playerTransform)) return false;
+        }
+        return true;
     }
 
     // Converts "height of the ground" into "height for the player's transform",
