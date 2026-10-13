@@ -1,16 +1,72 @@
+using System.Collections;
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 public class PlayerAttack : MonoBehaviour
 {
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
-    void Start()
+    public int attackDamage = 10;
+    public float attackSpeed = 1f;
+    public float attackCooldown = 1f;
+
+    BoxCollider attackCollider;
+    bool canAttack = true;
+
+    void Awake()
     {
-        
+        attackCollider = GetComponent<BoxCollider>();
+        attackCollider.enabled = false;
     }
 
-    // Update is called once per frame
-    void Update()
+    public void SetDamage(int amount)
     {
+        attackDamage = amount;
+    }
+
+    public void SetSpeed(int amount)
+    {
+        attackSpeed = amount;
+    }
+
+    public void DealDamage(GameObject target)
+    {
+        if (target.TryGetComponent<EnemyHealth>(out var enemy))
+        {
+            enemy.TakeDamage(attackDamage);
+            Debug.Log("Enemy Attacked!");
+        }
+    }
+
+    public void OnAttack(InputAction.CallbackContext context)
+    {
+        if (!context.started) return;
+        if (attackCollider.gameObject == null) return;
+        if (!canAttack) return;
+
+        attackCollider.enabled = true;
+
+        StartCoroutine(AttackCooldown());
+    }
+
+    private void OnTriggerEnter(Collider trigger)
+    {
+        if (trigger == null) return;
         
+        if (trigger.gameObject.CompareTag("Enemy"))
+        {
+            DealDamage(trigger.gameObject);
+        }
+    }
+
+    private IEnumerator AttackCooldown()
+    {
+        canAttack = false;
+
+        yield return new WaitForSeconds(attackSpeed);
+
+        attackCollider.enabled = false;
+
+        yield return new WaitForSeconds(attackCooldown);
+
+        canAttack = true;
     }
 }
