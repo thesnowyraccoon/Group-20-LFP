@@ -14,5 +14,8 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Scenes/RoomGenerationExperiment.unity
     guid: a9ca8f4c2dcdbb24da156b7d8b3cfa4f
+  - enabled: 1
+    path: Assets/Scenes/Sanctuary_Alpha_Hayley.unity
+    guid: 63384baf323596149a14e5910948ef89
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
