@@ -38,6 +38,7 @@ public class PlayerHealth : MonoBehaviour
     public void SetMaxHealth(int healthMax) 
     {
         maxHealth = healthMax;
+        currentHealth = maxHealth;
     }
 
     public int GetHealth()  // Allows UI to access player's current health

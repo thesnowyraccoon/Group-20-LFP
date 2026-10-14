@@ -1,4 +1,5 @@
 using System.Collections;
+using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -6,15 +7,26 @@ public class PlayerAttack : MonoBehaviour
 {
     public int attackDamage = 10;
     public float attackSpeed = 1f;
-    public float attackCooldown = 1f;
-
+    
+    private float attackCooldown = 0f;
+    
+    // bool canAttack = true;
+    
     BoxCollider attackCollider;
-    bool canAttack = true;
+    MeshRenderer renderer;
 
     void Awake()
     {
         attackCollider = GetComponent<BoxCollider>();
         attackCollider.enabled = false;
+
+        renderer = GetComponent<MeshRenderer>();
+        renderer.enabled = false;
+    }
+
+    void Update()
+    {
+        attackCooldown -= Time.deltaTime;
     }
 
     public void SetDamage(int amount)
@@ -40,11 +52,22 @@ public class PlayerAttack : MonoBehaviour
     {
         if (!context.started) return;
         if (attackCollider.gameObject == null) return;
-        if (!canAttack) return;
+        // if (!canAttack) return;
 
-        attackCollider.enabled = true;
+        // attackCollider.enabled = true;
+        // renderer.enabled = true;
 
-        StartCoroutine(AttackCooldown());
+        // StartCoroutine(AttackCooldown());
+
+        if (attackCooldown <= 0f)
+        {
+            attackCollider.enabled = true;
+            renderer.enabled = true;
+
+            StartCoroutine(AttackCooldown());
+
+            attackCooldown = 1f / attackSpeed;
+        }
     }
 
     private void OnTriggerEnter(Collider trigger)
@@ -59,14 +82,9 @@ public class PlayerAttack : MonoBehaviour
 
     private IEnumerator AttackCooldown()
     {
-        canAttack = false;
-
-        yield return new WaitForSeconds(attackSpeed);
+        yield return new WaitForSeconds(0.5f);
 
         attackCollider.enabled = false;
-
-        yield return new WaitForSeconds(attackCooldown);
-
-        canAttack = true;
+        renderer.enabled = false;
     }
 }
