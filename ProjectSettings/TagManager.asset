@@ -8,6 +8,7 @@ TagManager:
   - Combat Room
   - 'Platform and Combat Room '
   - 'Platforming Room '
+  - Enemy
   layers:
   - Default
   - TransparentFX
@@ -17,7 +18,7 @@ TagManager:
   - UI
   - Player
   - Interactions
-  - 
+  - Enemy
   - 
   - 
   - 
