@@ -403,8 +403,8 @@ Mesh:
   m_CookingOptions: 30
   m_BakedConvexCollisionMesh: 
   m_BakedTriangleCollisionMesh: 
-  m_MeshMetrics[0]: 1
-  m_MeshMetrics[1]: 1
+  'm_MeshMetrics[0]': 1
+  'm_MeshMetrics[1]': 1
   m_MeshOptimizationFlags: 1
   m_StreamData:
     serializedVersion: 2
@@ -706,7 +706,7 @@ RectTransform:
   m_Children:
   - {fileID: 1204161869}
   - {fileID: 700972863}
-  m_Father: {fileID: 0}
+  m_Father: {fileID: 839907082}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
@@ -767,6 +767,7 @@ MonoBehaviour:
   turnSmoothTime: 0.1
   jumpForce: 5
   gravity: -9.8
+  maxJumps: 1
 --- !u!143 &640898293
 CharacterController:
   m_ObjectHideFlags: 0
@@ -832,7 +833,7 @@ MonoBehaviour:
           m_BoolArgument: 0
         m_CallState: 2
     m_ActionId: 98988631-5dc9-4c3b-b5e5-f62fae10dad9
-    m_ActionName: Player/Move[/Keyboard/w,/Keyboard/s,/Keyboard/a,/Keyboard/d,/Keyboard/upArrow,/Keyboard/downArrow,/Keyboard/leftArrow,/Keyboard/rightArrow]
+    m_ActionName: 'Player/Move[/Keyboard/w,/Keyboard/s,/Keyboard/a,/Keyboard/d,/Keyboard/upArrow,/Keyboard/downArrow,/Keyboard/leftArrow,/Keyboard/rightArrow]'
   - m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 640898292}
@@ -848,7 +849,7 @@ MonoBehaviour:
           m_BoolArgument: 0
         m_CallState: 2
     m_ActionId: 91a76e3b-87f0-4bff-81d4-8be4ade699b3
-    m_ActionName: Player/Jump[/Keyboard/space]
+    m_ActionName: 'Player/Jump[/Keyboard/space]'
   - m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 640898295}
@@ -864,7 +865,7 @@ MonoBehaviour:
           m_BoolArgument: 0
         m_CallState: 2
     m_ActionId: 6d8cf313-3991-4768-9e38-42c7558ff90d
-    m_ActionName: Player/Interact[/Keyboard/e]
+    m_ActionName: 'Player/Interact[/Keyboard/e]'
   - m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 640898292}
@@ -880,7 +881,7 @@ MonoBehaviour:
           m_BoolArgument: 0
         m_CallState: 2
     m_ActionId: c66d967b-0215-4913-936e-bd0bfe0ac7a2
-    m_ActionName: Player/Sprint[/Keyboard/leftShift]
+    m_ActionName: 'Player/Sprint[/Keyboard/leftShift]'
   - m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 839907084}
@@ -896,7 +897,7 @@ MonoBehaviour:
           m_BoolArgument: 0
         m_CallState: 2
     m_ActionId: 06b8dbf6-2a5a-4974-afef-b01c9f075d1c
-    m_ActionName: Player/Pause[/Keyboard/escape]
+    m_ActionName: 'Player/Pause[/Keyboard/escape]'
   m_NeverAutoSwitchControlSchemes: 0
   m_DefaultControlScheme: Keyboard&Mouse
   m_DefaultActionMap: Player
@@ -1493,8 +1494,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 937376429}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.458982, y: -8.053663e-23, z: 5.8507396e-23, w: 0.8884456}
-  m_LocalPosition: {x: 0, y: 7.309605, z: -14.836901}
+  m_LocalRotation: {x: 0.43866518, y: 0.000000017895077, z: -0.000000008735261, w: 0.8986506}
+  m_LocalPosition: {x: 0, y: 21.467155, z: -26.32914}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -1907,7 +1908,7 @@ Transform:
   m_GameObject: {fileID: 1357694305}
   serializedVersion: 2
   m_LocalRotation: {x: 0.43866518, y: 0.000000017895076, z: -0.00000000873526, w: 0.8986506}
-  m_LocalPosition: {x: 0, y: 7.309605, z: -14.836901}
+  m_LocalPosition: {x: 0, y: 21.467155, z: -26.32914}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -4008,93 +4009,10 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &2110360899
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 2110360901}
-  - component: {fileID: 2110360900}
-  m_Layer: 0
-  m_Name: Generator
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &2110360900
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2110360899}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 5ae3d8875b071ca48a0b8124ad9e9359, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::DungeonGenerator
-  roomCount: 7
-  gridSize: {x: 9, y: 9}
-  startPosition: {x: 4, y: 4}
-  dungeonOrigin: {x: 0, y: -0.81, z: -6.61}
-  startTransform: {fileID: 640898290}
-  autoMeasureRooms: 1
-  gapBetweenRooms: 2
-  horizontalRoomSpacing: 70.04213
-  verticalRoomSpacing: 79.54319
-  plainRooms:
-  - {fileID: 1809495234291153031, guid: b84aee064f2741e45ae830e88c0e64ea, type: 3}
-  easyRooms:
-  - prefab: {fileID: 110540440306290030, guid: 483501de30f28c14d868f5318f478716, type: 3}
-    entryDoor: 2
-    exitDoor: 3
-  - prefab: {fileID: 6366401202511694389, guid: 00b81de1201415b4f98286f3a2165c9d, type: 3}
-    entryDoor: 2
-    exitDoor: 3
-  mediumRooms:
-  - prefab: {fileID: 6966774318764550177, guid: 1e1f34ca9bbe2444aa1fb97d147c6854, type: 3}
-    entryDoor: 2
-    exitDoor: 3
-  - prefab: {fileID: 7130935178537554312, guid: 631323824a2613b4383fe28adad81ad1, type: 3}
-    entryDoor: 2
-    exitDoor: 3
-  hardRooms:
-  - prefab: {fileID: 8005353240108239466, guid: 20f2e80569e90bd4596ec7f54aa72511, type: 3}
-    entryDoor: 2
-    exitDoor: 3
-  - prefab: {fileID: 7878104822732282790, guid: b79046ade37187247bec2cebb307aff3, type: 3}
-    entryDoor: 2
-    exitDoor: 2
-  doorTriggerWidth: 5
-  doorTriggerHeight: 4
-  doorTriggerDepth: 3
-  doorTriggerOffset: 0.5
-  doorTriggerSideMargin: 0.25
-  floorObjectName: Floor
---- !u!4 &2110360901
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2110360899}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -26.56013, y: -0, z: -54.85241}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
   m_Roots:
-  - {fileID: 2110360901}
   - {fileID: 2013083651}
   - {fileID: 937376434}
   - {fileID: 640898290}

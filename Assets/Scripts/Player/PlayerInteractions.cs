@@ -1,6 +1,5 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
-using UnityEngine.XR;
 
 public class PlayerInteractions : MonoBehaviour
 {
@@ -10,7 +9,7 @@ public class PlayerInteractions : MonoBehaviour
     public GameObject interactIcon;
     public float range = 2f;
 
-    bool interactInput;
+    private bool interactInput;
 
     void Update()
     {
@@ -19,59 +18,50 @@ public class PlayerInteractions : MonoBehaviour
 
     public void OnInteract(InputAction.CallbackContext context)
     {
-        interactInput = context.performed;
+        if (context.performed)
+            interactInput = true;
     }
 
     void HandleInteraction()
     {
         Vector3 origin = transform.position;
-        Vector3 direction = transform.TransformDirection(Vector3.forward);
+        Vector3 direction = transform.forward;
 
-        RaycastHit hit;
-        Physics.Raycast(origin, direction, out hit, range, interactMask);
-        Debug.DrawRay(origin, direction * hit.distance, Color.purple);
-        
-        bool interactableInRange = hit.collider != null && hit.collider.TryGetComponent(out interactable);
+        bool hasHit = Physics.Raycast(
+    origin,
+    direction,
+    out RaycastHit hit,
+    range,
+    interactMask
+);
+
+        bool interactableInRange =
+            hasHit &&
+            hit.collider.TryGetComponent(out interactable);
+
+        if (interactIcon != null)
+            interactIcon.SetActive(interactableInRange);
 
         if (interactableInRange)
         {
-            // Shows interact UI/GUI
-            interactIcon.SetActive(true);
-        }
-        else
-        {
-            // Shows nothing
-            interactIcon.SetActive(false);
-        }
-
-        if (interactableInRange && interactable.CanPickup())
-        {
-            foreach (var script in hit.collider.GetComponents<IInteractable>())
+            if (interactable.CanPickup())
             {
-                if (script != null)
-                {
-                    script.Interact(hit.collider);
-                }
-                else
-                {
-                    Debug.LogWarning("Interaction not found");
-                }
+                ActivateInteractions(hit.collider);
+            }
+            else if (interactInput)
+            {
+                ActivateInteractions(hit.collider);
             }
         }
 
-        if (interactInput && interactableInRange)
+        interactInput = false;
+    }
+
+    void ActivateInteractions(Collider target)
+    {
+        foreach (var interaction in target.GetComponents<IInteractable>())
         {
-            foreach (var script in hit.collider.GetComponents<IInteractable>())
-            {
-                if (script != null)
-                {
-                    script.Interact(hit.collider);
-                }
-                else
-                {
-                    Debug.LogWarning("Interaction not found");
-                }
-            }
+            interaction?.Interact(target);
         }
     }
 }

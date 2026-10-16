@@ -135,34 +135,72 @@ public class RoomChainManager : MonoBehaviour
     /// Called once by DungeonGenerator after all rooms are spawned.
     /// Hides every room except the starting one and puts the player on its floor.
     /// </summary>
-    public void Initialize(List<RoomEntry> generatedRooms, int startIndex, CharacterController playerController)
+  public void Initialize(
+    List<RoomEntry> generatedRooms,
+    int startIndex,
+    CharacterController playerController)
+{
+    rooms = generatedRooms;
+    currentIndex = startIndex;
+    player = playerController;
+    playerTransform = playerController != null
+        ? playerController.transform
+        : null;
+
+    for (int i = 0; i < rooms.Count; i++)
     {
-        rooms = generatedRooms;
-        currentIndex = startIndex;
-        player = playerController;
-        playerTransform = playerController != null ? playerController.transform : null;
-
-        for (int i = 0; i < rooms.Count; i++)
+        if (rooms[i].instance != null)
         {
-            if (rooms[i].instance != null)
-            {
-                rooms[i].instance.SetActive(i == currentIndex);
-            }
+            rooms[i].instance.SetActive(i == currentIndex);
         }
+    }
 
-        // Make sure the player starts ON the floor, not inside it or above nothing.
-        if (player != null && playerTransform != null && rooms.Count > 0)
+    if (player == null || playerTransform == null || rooms.Count == 0)
+        return;
+
+    RoomEntry startRoom = rooms[currentIndex];
+
+    Vector3 nominal = playerTransform.position;
+    Quaternion facing = playerTransform.rotation;
+    Vector3 inward = Vector3.forward;
+
+    if (startRoom.instance != null)
+    {
+        Transform[] markers =
+            startRoom.instance.GetComponentsInChildren<Transform>(true);
+
+        foreach (Transform marker in markers)
         {
-            RoomEntry startRoom = rooms[currentIndex];
-
-            Vector3 nominal = playerTransform.position;
-            if (TryFindGroundedSpawn(nominal, Vector3.forward, startRoom, out Vector3 position))
+            if (marker.name == "Player Spawn")
             {
-                MovePlayer(position, playerTransform.rotation);
-                RememberSafeSpot(position, playerTransform.rotation);
+                nominal = marker.position;
+                facing = marker.rotation;
+                inward = marker.forward;
+
+                Debug.Log("Using Level 1 Player Spawn marker.");
+                break;
             }
         }
     }
+
+    if (TryFindGroundedSpawn(
+        nominal,
+        inward,
+        startRoom,
+        out Vector3 position))
+    {
+        MovePlayer(position, facing);
+        RememberSafeSpot(position, facing);
+
+        Debug.Log("Player spawned at: " + position);
+    }
+    else
+    {
+        Debug.LogWarning(
+            "Could not find safe ground near Player Spawn."
+        );
+    }
+}
 
     void Update()
     {

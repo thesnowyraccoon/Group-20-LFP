@@ -60,6 +60,9 @@ public class DungeonGenerator : MonoBehaviour
     [Header("Plain Rooms")]
     public GameObject[] plainRooms;
 
+[Header("Starting Room")]
+public GameObject startingRoomPrefab;
+
     [Header("Easy Rooms")]
     public RoomVariant[] easyRooms;
 
@@ -319,7 +322,9 @@ public class DungeonGenerator : MonoBehaviour
         for (int i = 0; i < generatedRooms.Count; i++)
         {
             GeneratedRoom room = generatedRooms[i];
-            room.prefab = GetPrefabForRoom(room.difficulty);
+            room.prefab = (i == 0 && startingRoomPrefab != null)
+    ? startingRoomPrefab
+    : GetPrefabForRoom(room.difficulty);
 
             if (room.prefab == null)
             {
