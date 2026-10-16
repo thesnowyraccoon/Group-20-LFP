@@ -646,7 +646,7 @@ Transform:
   m_GameObject: {fileID: 883600286}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -1.4905e-10, y: 0.28, z: -6.927e-10}
+  m_LocalPosition: {x: -1.4905e-10, y: 0.52, z: -6.927e-10}
   m_LocalScale: {x: 1.7229992, y: 1.8002, z: 1.5426936}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -2521,7 +2521,7 @@ MonoBehaviour:
   plainRooms:
   - {fileID: 1809495234291153031, guid: b84aee064f2741e45ae830e88c0e64ea, type: 3}
   easyRooms:
-  - prefab: {fileID: 110540440306290030, guid: 483501de30f28c14d868f5318f478716, type: 3}
+  - prefab: {fileID: 5420697093422660249, guid: c8f2344efe9bac7489002b166db140fb, type: 3}
     entryDoor: 2
     exitDoor: 3
   - prefab: {fileID: 6366401202511694389, guid: 00b81de1201415b4f98286f3a2165c9d, type: 3}
