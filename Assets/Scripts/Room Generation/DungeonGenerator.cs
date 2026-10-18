@@ -567,6 +567,16 @@ public GameObject startingRoomPrefab;
         RoomExitTrigger exit = door.AddComponent<RoomExitTrigger>();
         exit.targetRoomIndex = targetRoomIndex;
         exit.worldDirection = doorDirection;
+        // Only lock forward exits, not entrances used for backtracking.
+if (targetRoomIndex > 0 &&
+    generatedRooms[targetRoomIndex - 1].spawnedInstance == instance)
+{
+    PawMechanismInteraction paw =
+        instance.GetComponentInChildren<PawMechanismInteraction>(true);
+
+    if (paw != null)
+        exit.gateBlocker = paw.gateBlocker;
+}
     }
 
     void InitializeRoomChain()

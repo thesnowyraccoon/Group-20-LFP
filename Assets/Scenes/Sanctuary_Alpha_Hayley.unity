@@ -1867,10 +1867,10 @@ MonoBehaviour:
   - {fileID: 1809495234291153031, guid: b84aee064f2741e45ae830e88c0e64ea, type: 3}
   startingRoomPrefab: {fileID: 1809495234291153031, guid: 2498685c07f9dd2479a09d10d2d4c935, type: 3}
   easyRooms:
-  - prefab: {fileID: 1779731692385394650, guid: 9f0b3401758b67d49ae5019997b3e538, type: 3}
+  - prefab: {fileID: 1809495234291153031, guid: 111878a7c981fbb4e8ceb21dcff3b0d0, type: 3}
     entryDoor: 2
     exitDoor: 3
-  - prefab: {fileID: 6366401202511694389, guid: 00b81de1201415b4f98286f3a2165c9d, type: 3}
+  - prefab: {fileID: 1809495234291153031, guid: 111878a7c981fbb4e8ceb21dcff3b0d0, type: 3}
     entryDoor: 2
     exitDoor: 3
   mediumRooms:
