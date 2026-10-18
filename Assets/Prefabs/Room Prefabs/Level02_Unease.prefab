@@ -7387,6 +7387,10 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 5158936674393879788, guid: 1a75269c2aaddfd498a837850ebd9730, type: 3}
+      propertyPath: pickupSound
+      value: 
+      objectReference: {fileID: 8300000, guid: a375d86b69adb524a96af87362fbe612, type: 3}
     - target: {fileID: 8285182462903245722, guid: 1a75269c2aaddfd498a837850ebd9730, type: 3}
       propertyPath: m_Name
       value: Jump (1)
@@ -8041,6 +8045,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 5731923286068924800}
     m_Modifications:
+    - target: {fileID: 2649202029855592176, guid: d6b332e01ad08d54bbfc035a82f9a308, type: 3}
+      propertyPath: pickupSound
+      value: 
+      objectReference: {fileID: 8300000, guid: 50deb37c29037b74d90727cd62c94914, type: 3}
     - target: {fileID: 3325466632571462516, guid: d6b332e01ad08d54bbfc035a82f9a308, type: 3}
       propertyPath: m_Name
       value: Speed (1)
@@ -12246,6 +12254,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: DoubleJump
       objectReference: {fileID: 0}
+    - target: {fileID: 6554342649068034923, guid: fd51c47900973644796061745230edca, type: 3}
+      propertyPath: pickupSound
+      value: 
+      objectReference: {fileID: 8300000, guid: f1ddaed759e16e74a836c6ff3f2edde7, type: 3}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []

@@ -1,3 +1,4 @@
+
 using UnityEngine;
 
 public class Speed : MonoBehaviour, IInteractable
@@ -5,10 +6,22 @@ public class Speed : MonoBehaviour, IInteractable
     PlayerMovement player;
 
     public float speedUpgrade = 3f;
-    
+
+    [Header("Pickup Audio")]
+    public AudioClip pickupSound;
+    [Range(0f, 1f)] public float pickupVolume = 0.7f;
+
     void Awake()
     {
-        player = GameObject.FindGameObjectWithTag("Player").GetComponent<PlayerMovement>();
+        GameObject playerObject = GameObject.FindGameObjectWithTag("Player");
+
+        if (playerObject != null)
+            player = playerObject.GetComponent<PlayerMovement>();
+    }
+
+    public bool CanPickup()
+    {
+        return false;
     }
 
     public void Interact(Collider col)
@@ -19,6 +32,17 @@ public class Speed : MonoBehaviour, IInteractable
 
             player.walkMod += speedUpgrade;
             player.sprintMod += speedUpgrade;
+
+            if (pickupSound != null)
+            {
+                AudioSource.PlayClipAtPoint(
+                    pickupSound,
+                    Camera.main != null
+                        ? Camera.main.transform.position
+                        : transform.position,
+                    pickupVolume
+                );
+            }
 
             Destroy(gameObject);
         }
