@@ -342,9 +342,16 @@ public GameObject startingRoomPrefab;
                     room.rotationY = 0f;
             }
             else
-            {
-                room.rotationY = 0f;
-            }
+{
+    if (i == 0 && startingRoomPrefab != null && room.outgoingDir >= 0)
+    {
+        room.rotationY = CalculateRotation(room.outgoingDir, 0);
+    }
+    else
+    {
+        room.rotationY = 0f;
+    }
+}
         }
     }
 
@@ -413,7 +420,7 @@ public GameObject startingRoomPrefab;
 
             float rotationY = room.rotationY;
 
-            if (room.difficulty != RoomDifficulty.Plain && !Mathf.Approximately(rotationY, 0f))
+            if (!Mathf.Approximately(rotationY, 0f))
             {
                 Bounds bounds = GetRendererBounds(instance);
                 instance.transform.RotateAround(bounds.center, Vector3.up, rotationY);
