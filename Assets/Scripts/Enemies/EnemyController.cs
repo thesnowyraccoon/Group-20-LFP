@@ -13,11 +13,20 @@ public class EnemyController : MonoBehaviour
     Transform target;
     NavMeshAgent agent;
 
-    void Start()
-    {
-        target = PlayerManager.instance.player.transform;
-        agent = GetComponent<NavMeshAgent>();
-    }
+   
+void Start()
+{
+    GameObject playerObject =
+        GameObject.FindGameObjectWithTag("Player");
+
+    if (playerObject != null)
+        target = playerObject.transform;
+    else
+        Debug.LogError("EnemyController: Player not found!");
+
+    agent = GetComponent<NavMeshAgent>();
+}
+
 
     void Update()
     {
@@ -27,12 +36,19 @@ public class EnemyController : MonoBehaviour
     }
 
     void TargetPlayer()
-    {
-        float distance = Vector3.Distance(target.position, transform.position);
+{
+    // Stop if the player or NavMeshAgent cannot be found.
+    if (target == null || agent == null)
+        return;
+
+    float distance = Vector3.Distance(target.position, transform.position);
 
         if (distance <= lookRadius)
         {
-            agent.SetDestination(target.position);
+            if (agent != null && agent.isActiveAndEnabled && agent.isOnNavMesh)
+{
+    agent.SetDestination(target.position);
+}
 
             if (distance <= agent.stoppingDistance)
             {

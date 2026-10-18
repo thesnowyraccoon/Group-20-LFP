@@ -1866,6 +1866,10 @@ MonoBehaviour:
   plainRooms:
   - {fileID: 1809495234291153031, guid: b84aee064f2741e45ae830e88c0e64ea, type: 3}
   startingRoomPrefab: {fileID: 1809495234291153031, guid: 2498685c07f9dd2479a09d10d2d4c935, type: 3}
+  threeRoomDemo: 1
+  level02Prefab: {fileID: 1809495234291153031, guid: 111878a7c981fbb4e8ceb21dcff3b0d0, type: 3}
+  level03Prefab: {fileID: 1809495234291153031, guid: 26acc811266051e4c97bc4a6f504d064, type: 3}
+  testStartRoom: 0
   easyRooms:
   - prefab: {fileID: 1809495234291153031, guid: 111878a7c981fbb4e8ceb21dcff3b0d0, type: 3}
     entryDoor: 2

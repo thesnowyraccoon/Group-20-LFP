@@ -34,8 +34,8 @@ public class DungeonGenerator : MonoBehaviour
     }
 
     [Header("Dungeon Settings")]
-    [Min(7)]
-    public int roomCount = 7;
+    [Min(3)]
+    public int roomCount = 3;
     public Vector2Int gridSize = new Vector2Int(9, 9);
     public Vector2Int startPosition = new Vector2Int(4, 4);
 
@@ -62,6 +62,14 @@ public class DungeonGenerator : MonoBehaviour
 
 [Header("Starting Room")]
 public GameObject startingRoomPrefab;
+
+[Header("Exam Demo")]
+public bool threeRoomDemo = true;
+public GameObject level02Prefab;
+public GameObject level03Prefab;
+[Header("Testing Only")]
+[Range(0, 2)]
+public int testStartRoom = 0;
 
     [Header("Easy Rooms")]
     public RoomVariant[] easyRooms;
@@ -110,7 +118,10 @@ public GameObject startingRoomPrefab;
         generatedRooms.Clear();
         hasReferenceFloor = false;
 
-        if (roomCount < 7) roomCount = 7;
+        if (threeRoomDemo)
+    roomCount = 3;
+else if (roomCount < 7)
+    roomCount = 7;
 
         if (plainRooms == null || plainRooms.Length == 0)
         {
@@ -266,18 +277,31 @@ public GameObject startingRoomPrefab;
         return index == 1 || index == 3 || index == 5;
     }
 
-    void AssignRoomDifficulties()
-    {
-        if (generatedRooms.Count < 7) return;
+    
+void AssignRoomDifficulties()
+{
+    if (generatedRooms.Count < 3) return;
 
-        generatedRooms[0].difficulty = RoomDifficulty.Plain;
-        generatedRooms[1].difficulty = RoomDifficulty.Easy;
-        generatedRooms[2].difficulty = RoomDifficulty.Plain;
-        generatedRooms[3].difficulty = RoomDifficulty.Medium;
-        generatedRooms[4].difficulty = RoomDifficulty.Plain;
-        generatedRooms[5].difficulty = RoomDifficulty.Hard;
-        generatedRooms[6].difficulty = RoomDifficulty.Plain;
+    generatedRooms[0].difficulty = RoomDifficulty.Plain;
+    generatedRooms[1].difficulty = RoomDifficulty.Easy;
+
+    // Three-room exam demo
+    if (generatedRooms.Count == 3)
+    {
+        generatedRooms[2].difficulty = RoomDifficulty.Easy;
+        return;
     }
+
+    // Original seven-room progression
+    if (generatedRooms.Count < 7) return;
+
+    generatedRooms[2].difficulty = RoomDifficulty.Plain;
+    generatedRooms[3].difficulty = RoomDifficulty.Medium;
+    generatedRooms[4].difficulty = RoomDifficulty.Plain;
+    generatedRooms[5].difficulty = RoomDifficulty.Hard;
+    generatedRooms[6].difficulty = RoomDifficulty.Plain;
+}
+
 
     void BuildRoomConnections()
     {
@@ -301,19 +325,46 @@ public GameObject startingRoomPrefab;
                 room.status[room.outgoingDir] = true;
             }
 
-            if (room.difficulty != RoomDifficulty.Plain)
-            {
-                if (room.incomingDir < 0 || room.outgoingDir < 0)
-                {
-                    Debug.LogError(room.difficulty + " room does not have two connections.");
-                }
+if (threeRoomDemo &&
+    generatedRooms.Count == 3 &&
+    i == generatedRooms.Count - 1 &&
+    room.incomingDir >= 0)
+{
+    // Face the victory exit opposite the room entrance.
+    room.outgoingDir = Opposite(room.incomingDir);
 
-                if (Opposite(room.incomingDir) != room.outgoingDir)
-                {
-                    Debug.LogError(room.difficulty + " room is not straight. Incoming: " +
-                                   room.incomingDir + " Outgoing: " + room.outgoingDir);
-                }
-            }
+    // Keep the exit doorway open without generating Level 4.
+    room.status[room.outgoingDir] = true;
+}
+
+            
+if (room.difficulty != RoomDifficulty.Plain)
+{
+    // The final demo room has an entrance but no next room.
+    bool isFinalDemoRoom =
+        threeRoomDemo &&
+        generatedRooms.Count == 3 &&
+        i == generatedRooms.Count - 1;
+
+    if (room.incomingDir < 0 ||
+        (room.outgoingDir < 0 && !isFinalDemoRoom))
+    {
+        Debug.LogError(room.difficulty +
+            " room does not have the required connections.");
+    }
+
+    // Only validate straight-through rooms with two connections.
+    if (room.incomingDir >= 0 &&
+        room.outgoingDir >= 0 &&
+        Opposite(room.incomingDir) != room.outgoingDir)
+    {
+        Debug.LogError(room.difficulty +
+            " room is not straight. Incoming: " +
+            room.incomingDir +
+            " Outgoing: " + room.outgoingDir);
+    }
+}
+
         }
     }
 
@@ -322,9 +373,21 @@ public GameObject startingRoomPrefab;
         for (int i = 0; i < generatedRooms.Count; i++)
         {
             GeneratedRoom room = generatedRooms[i];
-            room.prefab = (i == 0 && startingRoomPrefab != null)
-    ? startingRoomPrefab
-    : GetPrefabForRoom(room.difficulty);
+            if (threeRoomDemo && roomCount == 3)
+{
+    if (i == 0)
+        room.prefab = startingRoomPrefab;
+    else if (i == 1)
+        room.prefab = level02Prefab;
+    else
+        room.prefab = level03Prefab;
+}
+else
+{
+    room.prefab = (i == 0 && startingRoomPrefab != null)
+        ? startingRoomPrefab
+        : GetPrefabForRoom(room.difficulty);
+}
 
             if (room.prefab == null)
             {
@@ -610,7 +673,15 @@ if (targetRoomIndex > 0 &&
             Debug.LogWarning("DungeonGenerator: No CharacterController found in the scene for RoomChainManager to move.");
         }
 
-        RoomChainManager.Instance.Initialize(entries, 0, playerController);
+        int startIndex = threeRoomDemo
+    ? Mathf.Clamp(testStartRoom, 0, entries.Count - 1)
+    : 0;
+
+RoomChainManager.Instance.Initialize(
+    entries,
+    startIndex,
+    playerController
+);
     }
 
     // ------------------------------------------------------------------
