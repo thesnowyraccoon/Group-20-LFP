@@ -477,6 +477,7 @@ MonoBehaviour:
   turnSmoothTime: 0.1
   jumpForce: 10
   gravity: -11.8
+  maxJumps: 1
 --- !u!114 &785316745
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2521,24 +2522,24 @@ MonoBehaviour:
   plainRooms:
   - {fileID: 1809495234291153031, guid: b84aee064f2741e45ae830e88c0e64ea, type: 3}
   easyRooms:
-  - prefab: {fileID: 5420697093422660249, guid: c8f2344efe9bac7489002b166db140fb, type: 3}
+  - prefab: {fileID: 4667921028860336670, guid: 8ebb7de28ddfb184bbcdbfedaa9415e1, type: 3}
     entryDoor: 2
     exitDoor: 3
-  - prefab: {fileID: 6366401202511694389, guid: 00b81de1201415b4f98286f3a2165c9d, type: 3}
+  - prefab: {fileID: 4667921028860336670, guid: 8ebb7de28ddfb184bbcdbfedaa9415e1, type: 3}
     entryDoor: 2
     exitDoor: 3
   mediumRooms:
-  - prefab: {fileID: 6966774318764550177, guid: 1e1f34ca9bbe2444aa1fb97d147c6854, type: 3}
+  - prefab: {fileID: 1809495234291153031, guid: b84aee064f2741e45ae830e88c0e64ea, type: 3}
     entryDoor: 2
     exitDoor: 3
-  - prefab: {fileID: 7130935178537554312, guid: 631323824a2613b4383fe28adad81ad1, type: 3}
+  - prefab: {fileID: 1809495234291153031, guid: b84aee064f2741e45ae830e88c0e64ea, type: 3}
     entryDoor: 2
     exitDoor: 3
   hardRooms:
-  - prefab: {fileID: 8005353240108239466, guid: 20f2e80569e90bd4596ec7f54aa72511, type: 3}
+  - prefab: {fileID: 1809495234291153031, guid: b84aee064f2741e45ae830e88c0e64ea, type: 3}
     entryDoor: 2
     exitDoor: 3
-  - prefab: {fileID: 7878104822732282790, guid: b79046ade37187247bec2cebb307aff3, type: 3}
+  - prefab: {fileID: 1809495234291153031, guid: b84aee064f2741e45ae830e88c0e64ea, type: 3}
     entryDoor: 2
     exitDoor: 2
   doorTriggerWidth: 5
