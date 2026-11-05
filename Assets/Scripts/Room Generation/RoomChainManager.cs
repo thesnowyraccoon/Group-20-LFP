@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Events;
 using UnityEngine.UI;
 
 /// <summary>
@@ -15,11 +16,11 @@ public interface ICameraSnap
 }
 
 /// <summary>
-/// Keeps only one dungeon room active at a time (Cult of the Lamb style
-/// isolation). DungeonGenerator calls Initialize() once, after it has
-/// spawned every room, handing over the room list plus the player's
-/// CharacterController. From then on, RoomExitTrigger doors call
-/// RequestTransition() whenever the player walks through a doorway.
+/// Keeps only one dungeon room active at a time. DungeonGenerator calls
+/// Initialize() once, after it has spawned every room. RoomExitTrigger doors
+/// call RequestTransition() when the player walks through an OPEN doorway.
+/// Walking through the last room's door (target index == room count) means
+/// the player has escaped.
 /// </summary>
 public class RoomChainManager : MonoBehaviour
 {
@@ -33,40 +34,33 @@ public class RoomChainManager : MonoBehaviour
         public int incomingDir = -1;
         public int outgoingDir = -1;
 
-        // Real half-size of the room's floor (middle to edge). Set by DungeonGenerator.
-        public float halfWidth;   // along world X
-        public float halfHeight;  // along world Z
-
-        // Height of the top of the floor. Set by DungeonGenerator.
+        public float halfWidth;
+        public float halfHeight;
         public float floorTopY;
     }
 
     [Header("Transition")]
-
-    [Tooltip("Seconds to fade to black, and again to fade back in.")]
     public float fadeDuration = 0.35f;
-
-    [Tooltip("How far inside the room, measured from the doorway, the player appears after a transition.")]
     public float spawnInset = 3f;
-
-    [Tooltip("Seconds after a transition during which doors are ignored. Stops the player bouncing back and forth.")]
     public float doorCooldown = 0.75f;
 
+    [Header("Door Camera Pan")]
+    [Tooltip("The script that makes your camera follow the player. It is switched off while the camera pans to a door. " +
+             "Leave empty to auto-detect a script on the camera that implements ICameraSnap.")]
+    public MonoBehaviour cameraFollowScript;
+
+    [Tooltip("Limits how far the camera can slide away from the player when looking at a door.")]
+    public float maxPanDistance = 14f;
+
+    [Header("Escape")]
+    [Tooltip("Fires after the player walks through the final door and the screen has faded to black. Hook up your win screen / scene load here.")]
+    public UnityEvent onEscaped;
+
     [Header("Safety")]
-
-    [Tooltip("Turn the fall safety net on or off completely.")]
     public bool enableFallSafety = true;
-
-    [Tooltip("Player is OUTSIDE the room (fell off the edge or out of the world). If they drop this far below the floor, they are put back at the last safe spot.")]
     public float fallLimit = 12f;
-
-    [Tooltip("Player is INSIDE the room (falling into a pit while platforming). The safety net stays out of the way unless they drop this far, which only happens if something is really broken. Your own pit respawn should kick in long before this.")]
     public float pitFallLimit = 100f;
-
-    [Tooltip("Extra distance around the room's floor that still counts as 'inside the room'.")]
     public float insideRoomMargin = 2f;
-
-    [Tooltip("How far the script looks for solid ground around the spawn point.")]
     public float groundSearchRadius = 8f;
 
     List<RoomEntry> rooms = new List<RoomEntry>();
@@ -85,6 +79,12 @@ public class RoomChainManager : MonoBehaviour
     bool hasSafePosition;
 
     CanvasGroup fadeGroup;
+
+    // Camera pan state
+    bool panning;
+    Transform panCamera;
+    Vector3 panStartPosition;
+    MonoBehaviour pausedFollow;
 
     void Awake()
     {
@@ -131,10 +131,6 @@ public class RoomChainManager : MonoBehaviour
         fadeGroup.interactable = false;
     }
 
-    /// <summary>
-    /// Called once by DungeonGenerator after all rooms are spawned.
-    /// Hides every room except the starting one and puts the player on its floor.
-    /// </summary>
     public void Initialize(List<RoomEntry> generatedRooms, int startIndex, CharacterController playerController)
     {
         rooms = generatedRooms;
@@ -150,7 +146,6 @@ public class RoomChainManager : MonoBehaviour
             }
         }
 
-        // Make sure the player starts ON the floor, not inside it or above nothing.
         if (player != null && playerTransform != null && rooms.Count > 0)
         {
             RoomEntry startRoom = rooms[currentIndex];
@@ -174,8 +169,6 @@ public class RoomChainManager : MonoBehaviour
         RoomEntry room = rooms[currentIndex];
         Vector3 p = playerTransform.position;
 
-        // Is the player above the room's footprint? If so, a fall is just a
-        // pit (part of the platforming), not the player leaving the room.
         bool insideRoom =
             Mathf.Abs(p.x - room.worldPosition.x) <= room.halfWidth + insideRoomMargin &&
             Mathf.Abs(p.z - room.worldPosition.z) <= room.halfHeight + insideRoomMargin;
@@ -192,11 +185,6 @@ public class RoomChainManager : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Puts the player back where they entered the current room.
-    /// Call this from your own pit / kill-zone script, for example:
-    /// RoomChainManager.Instance.RespawnAtLastSafeSpot();
-    /// </summary>
     public void RespawnAtLastSafeSpot()
     {
         if (player == null || playerTransform == null || !hasSafePosition) return;
@@ -204,28 +192,127 @@ public class RoomChainManager : MonoBehaviour
         MovePlayer(lastSafePosition, lastSafeRotation);
     }
 
+    // ------------------------------------------------------------------
+    // Door camera pan (called by RoomDoorController)
+    // ------------------------------------------------------------------
+
     /// <summary>
-    /// Called by a RoomExitTrigger when the player walks through a doorway.
-    /// travelDirection is the world direction (0=Up/+Z, 1=Down/-Z, 2=Right/+X,
-    /// 3=Left/-X) the player is walking in as they cross that door.
+    /// Locks the player and slides the camera toward a world point
+    /// (e.g. the door). Always follow with PanCameraBack().
     /// </summary>
+    public IEnumerator PanCameraTo(Vector3 focusPoint, float duration)
+    {
+        Camera cam = Camera.main != null ? Camera.main : FindAnyObjectByType<Camera>();
+        if (cam == null || playerTransform == null) yield break;
+
+        if (!panning)
+        {
+            panning = true;
+            panCamera = cam.transform;
+            panStartPosition = panCamera.position;
+
+            SetPlayerLocked(true);
+
+            pausedFollow = cameraFollowScript;
+
+            if (pausedFollow == null)
+            {
+                ICameraSnap snap = cam.GetComponent<ICameraSnap>();
+                pausedFollow = snap as MonoBehaviour;
+            }
+
+            if (pausedFollow != null) pausedFollow.enabled = false;
+        }
+
+        // Move the camera by the same offset that separates the door from the player,
+        // so the door ends up where the player normally appears on screen.
+        Vector3 delta = focusPoint - playerTransform.position;
+        delta.y = 0f;
+        delta = Vector3.ClampMagnitude(delta, maxPanDistance);
+
+        yield return MoveCamera(panCamera.position, panStartPosition + delta, duration);
+    }
+
+    public IEnumerator PanCameraBack(float duration)
+    {
+        if (!panning) yield break;
+
+        yield return MoveCamera(panCamera.position, panStartPosition, duration);
+
+        if (pausedFollow != null) pausedFollow.enabled = true;
+        pausedFollow = null;
+
+        Camera cam = panCamera != null ? panCamera.GetComponent<Camera>() : null;
+        ICameraSnap snap = cam != null ? cam.GetComponent<ICameraSnap>() : null;
+        snap?.SnapToTarget();
+
+        SetPlayerLocked(false);
+        panning = false;
+    }
+
+    IEnumerator MoveCamera(Vector3 from, Vector3 to, float duration)
+    {
+        float t = 0f;
+
+        while (t < duration)
+        {
+            t += Time.deltaTime;
+            float k = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(t / duration));
+            panCamera.position = Vector3.Lerp(from, to, k);
+            yield return null;
+        }
+
+        panCamera.position = to;
+    }
+
+    void SetPlayerLocked(bool locked)
+    {
+        if (player == null) return;
+
+        PlayerMovement movement = player.GetComponent<PlayerMovement>();
+        movement?.SetInputLocked(locked);
+    }
+
+    // ------------------------------------------------------------------
+    // Transitions
+    // ------------------------------------------------------------------
+
     public void RequestTransition(int targetIndex, int travelDirection)
     {
-        if (isTransitioning) return;
+        if (isTransitioning || panning) return;
         if (Time.time < ignoreDoorsUntil) return;
         if (rooms == null) return;
+
+        // Walking through the final room's door = escaped.
+        if (targetIndex == rooms.Count)
+        {
+            StartCoroutine(EscapeRoutine());
+            return;
+        }
+
         if (targetIndex < 0 || targetIndex >= rooms.Count) return;
         if (targetIndex == currentIndex) return;
 
         StartCoroutine(TransitionRoutine(targetIndex, travelDirection));
     }
 
+    IEnumerator EscapeRoutine()
+    {
+        isTransitioning = true;
+
+        SetPlayerLocked(true);
+
+        yield return Fade(0f, 1f);
+
+        Debug.Log("RoomChainManager: the player escaped all " + rooms.Count + " rooms!");
+        onEscaped?.Invoke();
+    }
+
     IEnumerator TransitionRoutine(int targetIndex, int travelDirection)
     {
         isTransitioning = true;
 
-        PlayerMovement movement = player != null ? player.GetComponent<PlayerMovement>() : null;
-        movement?.SetInputLocked(true);
+        SetPlayerLocked(true);
 
         yield return Fade(0f, 1f);
 
@@ -249,7 +336,7 @@ public class RoomChainManager : MonoBehaviour
 
         yield return Fade(1f, 0f);
 
-        movement?.SetInputLocked(false);
+        SetPlayerLocked(false);
 
         ignoreDoorsUntil = Time.time + doorCooldown;
         isTransitioning = false;
@@ -261,16 +348,13 @@ public class RoomChainManager : MonoBehaviour
 
         Vector3 travelDirWorld = DirectionToWorldVector(travelDirection);
 
-        // The player enters through the wall they are walking away from.
         bool movingSideways = (travelDirection == 2 || travelDirection == 3);
         float halfToDoor = movingSideways ? room.halfWidth : room.halfHeight;
 
-        // Start at the door, then step inward by spawnInset.
         float distanceFromMiddle = Mathf.Max(0f, halfToDoor - spawnInset);
 
         Vector3 nominal = room.worldPosition - travelDirWorld * distanceFromMiddle;
 
-        // Find real solid ground near that spot (the floor may have pits or rocks).
         Vector3 spawnPosition = FindGroundedSpawn(nominal, travelDirWorld, room);
 
         Quaternion facing = travelDirWorld.sqrMagnitude > 0f
@@ -281,11 +365,6 @@ public class RoomChainManager : MonoBehaviour
         RememberSafeSpot(spawnPosition, facing);
     }
 
-    /// <summary>
-    /// Finds a spot with solid floor under it, as close to 'nominal' as possible.
-    /// Searches further into the room and to the sides if the first spot has no ground.
-    /// Returns a position for the player's transform (not the feet).
-    /// </summary>
     Vector3 FindGroundedSpawn(Vector3 nominal, Vector3 inward, RoomEntry room)
     {
         Physics.SyncTransforms();
@@ -338,8 +417,6 @@ public class RoomChainManager : MonoBehaviour
             if (playerTransform != null && hit.collider.transform.IsChildOf(playerTransform)) continue;
             if (hit.normal.y < 0.5f) continue;
 
-            // Only accept ground close to the floor height, so wall tops,
-            // pillars and rocks are never picked as the spawn surface.
             if (hit.point.y < floorTopY - 1f || hit.point.y > floorTopY + 0.5f) continue;
 
             if (hit.point.y > best)
@@ -353,8 +430,6 @@ public class RoomChainManager : MonoBehaviour
         return found;
     }
 
-    // Converts "height of the ground" into "height for the player's transform",
-    // so the bottom of the capsule rests just above the ground.
     float GroundToTransformY(float groundY)
     {
         float scaleY = Mathf.Abs(playerTransform.lossyScale.y);
@@ -364,14 +439,10 @@ public class RoomChainManager : MonoBehaviour
 
     void MovePlayer(Vector3 position, Quaternion rotation)
     {
-        // The CharacterController resists direct transform changes while
-        // enabled, so we briefly disable it to move the player cleanly.
         player.enabled = false;
         playerTransform.SetPositionAndRotation(position, rotation);
         player.enabled = true;
 
-        // Optional: if your PlayerMovement has a method called OnTeleported,
-        // it is called here so you can reset falling speed.
         player.SendMessage("OnTeleported", SendMessageOptions.DontRequireReceiver);
     }
 

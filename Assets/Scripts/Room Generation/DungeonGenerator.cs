@@ -3,20 +3,45 @@ using UnityEngine;
 
 public class DungeonGenerator : MonoBehaviour
 {
-    public enum RoomDifficulty { Plain, Easy, Medium, Hard }
+    // ------------------------------------------------------------------
+    // Data
+    // ------------------------------------------------------------------
 
     [System.Serializable]
     public class RoomVariant
     {
+        [Tooltip("Just a name for the Inspector, e.g. 'Stage 1 Base Room' or 'Stage 1 Variant Room 1'.")]
+        public string label = "Stage 1 Base Room";
+
         public GameObject prefab;
+
+        [Tooltip("ON = this prefab has a fixed layout (e.g. a straight corridor room) and gets ROTATED so its Entry Door faces where the player comes from. " +
+                 "OFF = prefab is never rotated and RoomBehaviour opens the correct walls.")]
+        public bool fixedLayout = false;
+
+        // 0 = Up (+Z), 1 = Down (-Z), 2 = Right (+X), 3 = Left (-X). Only used if Fixed Layout is ON.
         public int entryDoor = 3;
         public int exitDoor = 2;
+    }
+
+    [System.Serializable]
+    public class Stage
+    {
+        [Tooltip("Just a name for the Inspector, e.g. 'Stage 1'.")]
+        public string label = "Stage 1";
+
+        [Tooltip("ON = the player must leave this room on the opposite side to where they came in (straight through).")]
+        public bool straightPath = false;
+
+        [Tooltip("Base room + variants. One of these is picked at random (equal chance) each time the game starts.")]
+        public RoomVariant[] variants;
     }
 
     private class GeneratedRoom
     {
         public Vector2Int gridPosition;
-        public RoomDifficulty difficulty;
+        public int stageIndex;
+        public RoomVariant variant;
         public int incomingDir = -1;
         public int outgoingDir = -1;
         public bool[] status = new bool[4];
@@ -25,17 +50,20 @@ public class DungeonGenerator : MonoBehaviour
         public Vector3 worldPosition;
         public GameObject spawnedInstance;
 
-        // Real size of the room in the world (measured after it is placed + rotated).
-        public float halfWidth;   // half size along world X
-        public float halfHeight;  // half size along world Z
-
-        // Height of the top of the room's floor in the world.
+        public float halfWidth;
+        public float halfHeight;
         public float floorTopY;
     }
 
+    // ------------------------------------------------------------------
+    // Inspector
+    // ------------------------------------------------------------------
+
+    [Header("Stages (set Size to 8)")]
+    [Tooltip("Element 0 = Stage 1 ... Element 7 = Stage 8. The number of stages is the number of rooms.")]
+    public Stage[] stages;
+
     [Header("Dungeon Settings")]
-    [Min(7)]
-    public int roomCount = 7;
     public Vector2Int gridSize = new Vector2Int(9, 9);
     public Vector2Int startPosition = new Vector2Int(4, 4);
 
@@ -47,45 +75,35 @@ public class DungeonGenerator : MonoBehaviour
     [Header("Room Size / Spacing")]
     [Tooltip("ON = the script measures your room prefabs and sets the spacing for you. Recommended.")]
     public bool autoMeasureRooms = true;
-
-    [Tooltip("Empty space left between rooms (rooms are never visible together, so this is just a safety gap).")]
     public float gapBetweenRooms = 2f;
-
-    [Tooltip("Only used if Auto Measure Rooms is OFF.")]
     public float horizontalRoomSpacing = 30f;
-
-    [Tooltip("Only used if Auto Measure Rooms is OFF.")]
     public float verticalRoomSpacing = 30f;
 
-    [Header("Plain Rooms")]
-    public GameObject[] plainRooms;
+    [Header("Doors")]
+    [Tooltip("Tag used on the door objects inside your room prefabs.")]
+    public string doorTag = "Door";
 
-    [Header("Easy Rooms")]
-    public RoomVariant[] easyRooms;
+    [Tooltip("Name of the little capsule the player touches to open the door. Matching ignores spaces and capital letters, and only needs to CONTAIN this text. " +
+             "Only used as a fallback when the room has no DoorUnlockItem.")]
+    public string unlockTriggerName = "PlayerHolder";
 
-    [Header("Medium Rooms")]
-    public RoomVariant[] mediumRooms;
+    [Tooltip("Optional particle effect spawned where the door vanishes.")]
+    public GameObject vanishEffectPrefab;
+    public float vanishDuration = 0.7f;
 
-    [Header("Hard Rooms")]
-    public RoomVariant[] hardRooms;
+    [Header("Door Camera Pan")]
+    public float panToDoorTime = 0.6f;
+    public float holdOnDoorTime = 0.5f;
+    public float panBackTime = 0.6f;
 
-    [Header("Room Isolation (Cult of the Lamb style)")]
-    [Tooltip("Width of the trigger along the doorway.")]
+    [Header("Exit Trigger (walk-through trigger)")]
     public float doorTriggerWidth = 3f;
-
-    [Tooltip("Height of the trigger.")]
     public float doorTriggerHeight = 3f;
-
-    [Tooltip("Depth of the trigger (how far the player walks into it). It sits just INSIDE the room, touching the wall.")]
     public float doorTriggerDepth = 1.5f;
-
-    [Tooltip("Slides every door trigger along the doorway. Positive = toward the wall/outside, negative = further into the room. Use this to fine-tune.")]
     public float doorTriggerOffset = 0.5f;
-
-    [Tooltip("Extra width added to each side of the doorway opening when the script can find the doorway in the prefab.")]
     public float doorTriggerSideMargin = 0.25f;
 
-    [Tooltip("Name of the floor object inside your room prefabs. The room is measured from this, so lamps and pillars can't throw the size off.")]
+    [Tooltip("Name of the floor object inside your room prefabs.")]
     public string floorObjectName = "Floor";
 
     // 0 = Up (+Z), 1 = Down (-Z), 2 = Right (+X), 3 = Left (-X)
@@ -95,6 +113,8 @@ public class DungeonGenerator : MonoBehaviour
 
     float referenceFloorTopY;
     bool hasReferenceFloor;
+
+    int RoomCount => stages != null ? stages.Length : 0;
 
     void Start()
     {
@@ -107,15 +127,7 @@ public class DungeonGenerator : MonoBehaviour
         generatedRooms.Clear();
         hasReferenceFloor = false;
 
-        if (roomCount < 7) roomCount = 7;
-
-        if (plainRooms == null || plainRooms.Length == 0)
-        {
-            Debug.LogError("DungeonGenerator: No plain rooms assigned.");
-            return;
-        }
-
-        if (!ValidateChallengeRooms()) return;
+        if (!ValidateStages()) return;
 
         if (autoMeasureRooms) MeasureRoomsAndSetSpacing();
 
@@ -125,9 +137,8 @@ public class DungeonGenerator : MonoBehaviour
             return;
         }
 
-        AssignRoomDifficulties();
         BuildRoomConnections();
-        ComputeRoomOrientationsAndPrefabs();
+        PickVariantsAndOrientations();
         ComputeRoomWorldPositions();
         SpawnRooms();
         InitializeRoomChain();
@@ -136,13 +147,50 @@ public class DungeonGenerator : MonoBehaviour
     }
 
     // ------------------------------------------------------------------
+    // Validation
+    // ------------------------------------------------------------------
+
+    bool ValidateStages()
+    {
+        if (stages == null || stages.Length < 2)
+        {
+            Debug.LogError("DungeonGenerator: Add your stages (Stages > Size = 8).");
+            return false;
+        }
+
+        for (int i = 0; i < stages.Length; i++)
+        {
+            Stage stage = stages[i];
+
+            if (stage == null || stage.variants == null || stage.variants.Length == 0)
+            {
+                Debug.LogError("DungeonGenerator: Stage " + (i + 1) + " has no room variants.");
+                return false;
+            }
+
+            foreach (RoomVariant v in stage.variants)
+            {
+                if (v == null || v.prefab == null)
+                {
+                    Debug.LogError("DungeonGenerator: Stage " + (i + 1) + " has a variant with no prefab assigned.");
+                    return false;
+                }
+
+                if (v.fixedLayout && !stage.straightPath && i > 0 && i < stages.Length - 1)
+                {
+                    Debug.LogWarning("DungeonGenerator: '" + v.label + "' uses Fixed Layout but Stage " + (i + 1) +
+                                     " is not set to Straight Path. Its exit may not line up.");
+                }
+            }
+        }
+
+        return true;
+    }
+
+    // ------------------------------------------------------------------
     // Measuring
     // ------------------------------------------------------------------
 
-    /// <summary>
-    /// Measures every room prefab, finds the biggest one, and sets the
-    /// spacing so rooms never overlap. No manual numbers needed.
-    /// </summary>
     void MeasureRoomsAndSetSpacing()
     {
         float biggest = 0f;
@@ -155,7 +203,6 @@ public class DungeonGenerator : MonoBehaviour
             Bounds b = GetRendererBounds(temp);
             DestroyImmediate(temp);
 
-            // Use the larger side, because challenge rooms get rotated 90 degrees.
             biggest = Mathf.Max(biggest, b.size.x, b.size.z);
         }
 
@@ -168,38 +215,18 @@ public class DungeonGenerator : MonoBehaviour
 
     IEnumerable<GameObject> AllPrefabs()
     {
-        foreach (GameObject p in plainRooms) yield return p;
-        foreach (RoomVariant v in easyRooms) if (v != null) yield return v.prefab;
-        foreach (RoomVariant v in mediumRooms) if (v != null) yield return v.prefab;
-        foreach (RoomVariant v in hardRooms) if (v != null) yield return v.prefab;
+        foreach (Stage stage in stages)
+        {
+            foreach (RoomVariant v in stage.variants)
+            {
+                if (v != null) yield return v.prefab;
+            }
+        }
     }
 
     // ------------------------------------------------------------------
-    // Validation + path generation
+    // Path generation
     // ------------------------------------------------------------------
-
-    bool ValidateChallengeRooms()
-    {
-        if (easyRooms == null || easyRooms.Length < 2)
-        {
-            Debug.LogError("DungeonGenerator: You need at least 2 Easy room variants.");
-            return false;
-        }
-
-        if (mediumRooms == null || mediumRooms.Length < 2)
-        {
-            Debug.LogError("DungeonGenerator: You need at least 2 Medium room variants.");
-            return false;
-        }
-
-        if (hardRooms == null || hardRooms.Length < 2)
-        {
-            Debug.LogError("DungeonGenerator: You need at least 2 Hard room variants.");
-            return false;
-        }
-
-        return true;
-    }
 
     bool GenerateControlledPath()
     {
@@ -211,7 +238,7 @@ public class DungeonGenerator : MonoBehaviour
         generatedRooms.Add(new GeneratedRoom
         {
             gridPosition = startPosition,
-            difficulty = RoomDifficulty.Plain
+            stageIndex = 0
         });
 
         return GeneratePathRecursive(1, startPosition, -1, occupied);
@@ -219,21 +246,17 @@ public class DungeonGenerator : MonoBehaviour
 
     bool GeneratePathRecursive(int roomIndex, Vector2Int currentPosition, int previousDirection, HashSet<Vector2Int> occupied)
     {
-        if (roomIndex >= roomCount) return true;
+        if (roomIndex >= RoomCount) return true;
 
         List<int> possibleDirections = GetAvailableDirections(currentPosition, occupied);
         Shuffle(possibleDirections);
 
         int currentRoomIndex = roomIndex - 1;
-        bool currentRoomIsChallenge = IsChallengeIndex(currentRoomIndex);
+        bool mustGoStraight = stages[currentRoomIndex].straightPath && previousDirection >= 0;
 
         foreach (int direction in possibleDirections)
         {
-            if (currentRoomIsChallenge)
-            {
-                if (previousDirection < 0) continue;
-                if (direction != previousDirection) continue;
-            }
+            if (mustGoStraight && direction != previousDirection) continue;
 
             Vector2Int nextPosition = MoveInDirection(currentPosition, direction);
 
@@ -241,10 +264,11 @@ public class DungeonGenerator : MonoBehaviour
 
             occupied.Add(nextPosition);
 
-            GeneratedRoom newRoom = new GeneratedRoom();
-            newRoom.gridPosition = nextPosition;
-            newRoom.difficulty = RoomDifficulty.Plain;
-            generatedRooms.Add(newRoom);
+            generatedRooms.Add(new GeneratedRoom
+            {
+                gridPosition = nextPosition,
+                stageIndex = roomIndex
+            });
 
             if (GeneratePathRecursive(roomIndex + 1, nextPosition, direction, occupied))
             {
@@ -256,24 +280,6 @@ public class DungeonGenerator : MonoBehaviour
         }
 
         return false;
-    }
-
-    bool IsChallengeIndex(int index)
-    {
-        return index == 1 || index == 3 || index == 5;
-    }
-
-    void AssignRoomDifficulties()
-    {
-        if (generatedRooms.Count < 7) return;
-
-        generatedRooms[0].difficulty = RoomDifficulty.Plain;
-        generatedRooms[1].difficulty = RoomDifficulty.Easy;
-        generatedRooms[2].difficulty = RoomDifficulty.Plain;
-        generatedRooms[3].difficulty = RoomDifficulty.Medium;
-        generatedRooms[4].difficulty = RoomDifficulty.Plain;
-        generatedRooms[5].difficulty = RoomDifficulty.Hard;
-        generatedRooms[6].difficulty = RoomDifficulty.Plain;
     }
 
     void BuildRoomConnections()
@@ -297,49 +303,38 @@ public class DungeonGenerator : MonoBehaviour
                 room.outgoingDir = DirectionBetween(room.gridPosition, next);
                 room.status[room.outgoingDir] = true;
             }
+        }
 
-            if (room.difficulty != RoomDifficulty.Plain)
-            {
-                if (room.incomingDir < 0 || room.outgoingDir < 0)
-                {
-                    Debug.LogError(room.difficulty + " room does not have two connections.");
-                }
-
-                if (Opposite(room.incomingDir) != room.outgoingDir)
-                {
-                    Debug.LogError(room.difficulty + " room is not straight. Incoming: " +
-                                   room.incomingDir + " Outgoing: " + room.outgoingDir);
-                }
-            }
+        // The final room has no next room, but it still needs an ESCAPE door.
+        // It uses the wall opposite to where the player came in.
+        GeneratedRoom last = generatedRooms[generatedRooms.Count - 1];
+        if (last.incomingDir >= 0)
+        {
+            last.outgoingDir = Opposite(last.incomingDir);
+            last.status[last.outgoingDir] = true;
         }
     }
 
-    void ComputeRoomOrientationsAndPrefabs()
+    // ------------------------------------------------------------------
+    // One random variant per stage
+    // ------------------------------------------------------------------
+
+    void PickVariantsAndOrientations()
     {
         for (int i = 0; i < generatedRooms.Count; i++)
         {
             GeneratedRoom room = generatedRooms[i];
-            room.prefab = GetPrefabForRoom(room.difficulty);
+            RoomVariant[] options = stages[room.stageIndex].variants;
 
-            if (room.prefab == null)
-            {
-                room.rotationY = 0f;
-                continue;
-            }
+            // Equal chance for every variant of this stage (1 in 3 with three).
+            room.variant = options[Random.Range(0, options.Length)];
+            room.prefab = room.variant.prefab;
 
-            if (room.difficulty != RoomDifficulty.Plain)
-            {
-                RoomVariant variant = GetVariant(room.difficulty, room.prefab);
+            room.rotationY = room.variant.fixedLayout
+                ? CalculateRotation(room.incomingDir, room.variant.entryDoor)
+                : 0f;
 
-                if (variant != null)
-                    room.rotationY = CalculateRotation(room.incomingDir, variant.entryDoor);
-                else
-                    room.rotationY = 0f;
-            }
-            else
-            {
-                room.rotationY = 0f;
-            }
+            Debug.Log("Stage " + (i + 1) + " -> " + room.variant.label);
         }
     }
 
@@ -408,17 +403,12 @@ public class DungeonGenerator : MonoBehaviour
 
             float rotationY = room.rotationY;
 
-            if (room.difficulty != RoomDifficulty.Plain && !Mathf.Approximately(rotationY, 0f))
+            if (room.variant.fixedLayout && !Mathf.Approximately(rotationY, 0f))
             {
                 Bounds bounds = GetRendererBounds(instance);
                 instance.transform.RotateAround(bounds.center, Vector3.up, rotationY);
-
-                Debug.Log(room.difficulty + " ROOM " + i + " = " + prefab.name + " | Rotation: " + rotationY);
             }
 
-            // Centre the room using its FLOOR, not every renderer.
-            // Lamps, pillars and door frames can stick out on one side and
-            // would push the room off-centre, which moves the doors.
             Bounds floorBounds;
             bool floorFound = TryGetFloorBounds(instance, out floorBounds);
 
@@ -431,8 +421,6 @@ public class DungeonGenerator : MonoBehaviour
             Vector3 correction = targetPosition - floorBounds.center;
             correction.y = 0f;
 
-            // Keep every room's floor at the same height so the player
-            // never spawns inside or under the floor of a different room.
             if (floorFound)
             {
                 if (!hasReferenceFloor)
@@ -448,16 +436,10 @@ public class DungeonGenerator : MonoBehaviour
 
             instance.transform.position += correction;
 
-            // Measure again after moving. These are the real numbers used
-            // for the door triggers and the player's spawn point.
             TryGetFloorBounds(instance, out floorBounds);
             room.halfWidth = floorBounds.extents.x;
             room.halfHeight = floorBounds.extents.z;
             room.floorTopY = floorBounds.max.y;
-
-            Debug.Log("Room " + i + " (" + prefab.name + ") floor size: " +
-                      (room.halfWidth * 2f) + " x " + (room.halfHeight * 2f) +
-                      " | floor found: " + floorFound);
 
             bool[] localStatus = RemapStatusForRotation(room.status, rotationY);
 
@@ -468,26 +450,133 @@ public class DungeonGenerator : MonoBehaviour
             else
                 Debug.LogWarning("Room " + prefab.name + " does not have a RoomBehaviour.");
 
-            CreateExitTriggers(room, instance, i);
+            // Walk-through trigger to the next room (starts switched OFF, the
+            // door controller switches it on once the door has opened).
+            BoxCollider exitTrigger = CreateExitTrigger(room, instance, i);
 
-            instance.name = GetRoomName(room.difficulty) + "_" + i;
+            // Hide every door except the exit door, and wire up the unlock item.
+            SetupDoors(room, instance, exitTrigger);
+
+            instance.name = "Stage" + (i + 1) + "_" + room.variant.label;
         }
     }
 
-    void CreateExitTriggers(GeneratedRoom room, GameObject instance, int index)
+    // ------------------------------------------------------------------
+    // Doors
+    // ------------------------------------------------------------------
+
+    void SetupDoors(GeneratedRoom room, GameObject instance, BoxCollider exitTrigger)
     {
-        if (room.outgoingDir >= 0 && index + 1 < generatedRooms.Count)
+        RoomDoorController controller = instance.GetComponent<RoomDoorController>();
+        if (controller == null) controller = instance.AddComponent<RoomDoorController>();
+
+        controller.vanishEffectPrefab = vanishEffectPrefab;
+        controller.vanishDuration = vanishDuration;
+        controller.panToDoorTime = panToDoorTime;
+        controller.holdTime = holdOnDoorTime;
+        controller.panBackTime = panBackTime;
+
+        List<Transform> exitDoors = new List<Transform>();
+
+        foreach (Transform t in instance.GetComponentsInChildren<Transform>(true))
         {
-            AddExitTrigger(room, instance, room.outgoingDir, index + 1);
+            if (t == instance.transform) continue;
+            if (!t.CompareTag(doorTag)) continue;
+            if (HasTaggedAncestor(t, instance.transform)) continue;
+
+            if (room.outgoingDir >= 0 && DoorSide(room, t.position) == room.outgoingDir)
+                exitDoors.Add(t);
+            else
+                t.gameObject.SetActive(false);
         }
 
-        if (room.incomingDir >= 0 && index - 1 >= 0)
+        controller.Setup(exitDoors, exitTrigger);
+
+        if (exitDoors.Count == 0)
         {
-            AddExitTrigger(room, instance, room.incomingDir, index - 1);
+            Debug.LogWarning("DungeonGenerator: no '" + doorTag + "' object found on the exit side of " +
+                             instance.name + ". The exit is open from the start.");
+            controller.OpenImmediately();
+            return;
         }
+
+        // If the room has a DoorUnlockItem (the floating collectible), it opens
+        // the door by itself. Don't add the simple DoorUnlockTrigger on top of
+        // it, or two scripts would both try to open the door.
+        if (instance.GetComponentInChildren<DoorUnlockItem>(true) != null)
+            return;
+
+        // Fallback: a plain capsule found by name gets the simple trigger.
+        Transform unlock = FindByLooseName(instance.transform, unlockTriggerName);
+
+        if (unlock == null)
+        {
+            Debug.LogWarning("DungeonGenerator: no DoorUnlockItem and no '" + unlockTriggerName +
+                             "' object found in " + instance.name + ". The exit door is open from the start.");
+            controller.OpenImmediately();
+            return;
+        }
+
+        if (unlock.GetComponent<DoorUnlockTrigger>() == null)
+            unlock.gameObject.AddComponent<DoorUnlockTrigger>();
     }
 
-    void AddExitTrigger(GeneratedRoom room, GameObject instance, int doorDirection, int targetRoomIndex)
+    bool HasTaggedAncestor(Transform t, Transform root)
+    {
+        Transform p = t.parent;
+
+        while (p != null && p != root)
+        {
+            if (p.CompareTag(doorTag)) return true;
+            p = p.parent;
+        }
+
+        return false;
+    }
+
+    // Which wall (0=Up,1=Down,2=Right,3=Left) a door sits on, in WORLD space.
+    int DoorSide(GeneratedRoom room, Vector3 doorPosition)
+    {
+        Vector3 d = doorPosition - room.worldPosition;
+
+        if (Mathf.Abs(d.x) > Mathf.Abs(d.z))
+            return d.x > 0f ? 2 : 3;
+
+        return d.z > 0f ? 0 : 1;
+    }
+
+    Transform FindByLooseName(Transform root, string wanted)
+    {
+        string key = Normalize(wanted);
+
+        foreach (Transform t in root.GetComponentsInChildren<Transform>(true))
+        {
+            if (t == root) continue;
+            if (Normalize(t.name).Contains(key)) return t;
+        }
+
+        return null;
+    }
+
+    string Normalize(string s)
+    {
+        return s.Replace(" ", "").Replace("_", "").ToLowerInvariant();
+    }
+
+    // ------------------------------------------------------------------
+    // Exit trigger
+    // ------------------------------------------------------------------
+
+    BoxCollider CreateExitTrigger(GeneratedRoom room, GameObject instance, int index)
+    {
+        if (room.outgoingDir < 0) return null;
+
+        // For the LAST room, index + 1 == room count, which RoomChainManager
+        // treats as "the player escaped".
+        return AddExitTrigger(room, instance, room.outgoingDir, index + 1);
+    }
+
+    BoxCollider AddExitTrigger(GeneratedRoom room, GameObject instance, int doorDirection, int targetRoomIndex)
     {
         GameObject door = new GameObject("Exit_" + doorDirection);
 
@@ -495,23 +584,14 @@ public class DungeonGenerator : MonoBehaviour
 
         bool horizontal = (doorDirection == 2 || doorDirection == 3);
 
-        // Distance from the room's middle to the edge of the floor.
         float halfToEdge = horizontal ? room.halfWidth : room.halfHeight;
-
-        // Trigger covers the last stretch of floor before the doorway, and
-        // reaches slightly into the doorway itself (see Door Trigger Offset).
         float centreDistance = Mathf.Max(0f, halfToEdge - doorTriggerDepth * 0.5f + doorTriggerOffset);
 
         Vector3 triggerPosition = room.worldPosition + DirectionToWorldVector(doorDirection) * centreDistance;
-
-        // Height is based on the real floor, so it always covers the player's body.
         triggerPosition.y = room.floorTopY + doorTriggerHeight * 0.5f - 0.25f;
 
         float triggerWidth = doorTriggerWidth;
 
-        // Best case: line the trigger up with the prefab's own doorway
-        // (North_Door / South_Door / East_Door / West_Door), so it matches
-        // the real opening exactly instead of relying on the floor edge.
         Vector3 doorCentre;
         float doorwayWidth;
 
@@ -542,8 +622,6 @@ public class DungeonGenerator : MonoBehaviour
             ? new Vector3(doorTriggerDepth, doorTriggerHeight, triggerWidth)
             : new Vector3(triggerWidth, doorTriggerHeight, doorTriggerDepth);
 
-        // If the room prefab is scaled, a collider's size gets scaled too.
-        // Divide that out so the trigger is exactly the size typed in the inspector.
         Vector3 s = door.transform.lossyScale;
 
         box.size = new Vector3(
@@ -555,6 +633,11 @@ public class DungeonGenerator : MonoBehaviour
         RoomExitTrigger exit = door.AddComponent<RoomExitTrigger>();
         exit.targetRoomIndex = targetRoomIndex;
         exit.worldDirection = doorDirection;
+
+        // Stays off until the door has opened.
+        box.enabled = false;
+
+        return box;
     }
 
     void InitializeRoomChain()
@@ -592,50 +675,8 @@ public class DungeonGenerator : MonoBehaviour
     }
 
     // ------------------------------------------------------------------
-    // Helpers (unchanged)
+    // Helpers
     // ------------------------------------------------------------------
-
-    GameObject GetPrefabForRoom(RoomDifficulty difficulty)
-    {
-        switch (difficulty)
-        {
-            case RoomDifficulty.Easy: return PickRandomVariant(easyRooms);
-            case RoomDifficulty.Medium: return PickRandomVariant(mediumRooms);
-            case RoomDifficulty.Hard: return PickRandomVariant(hardRooms);
-            default: return plainRooms[Random.Range(0, plainRooms.Length)];
-        }
-    }
-
-    GameObject PickRandomVariant(RoomVariant[] variants)
-    {
-        if (variants == null || variants.Length == 0) return null;
-
-        RoomVariant selected = variants[Random.Range(0, variants.Length)];
-        if (selected == null) return null;
-
-        return selected.prefab;
-    }
-
-    RoomVariant GetVariant(RoomDifficulty difficulty, GameObject prefab)
-    {
-        RoomVariant[] variants = null;
-
-        switch (difficulty)
-        {
-            case RoomDifficulty.Easy: variants = easyRooms; break;
-            case RoomDifficulty.Medium: variants = mediumRooms; break;
-            case RoomDifficulty.Hard: variants = hardRooms; break;
-        }
-
-        if (variants == null) return null;
-
-        foreach (RoomVariant variant in variants)
-        {
-            if (variant != null && variant.prefab == prefab) return variant;
-        }
-
-        return null;
-    }
 
     float CalculateRotation(int worldEntryDirection, int prefabEntryDirection)
     {
@@ -751,16 +792,11 @@ public class DungeonGenerator : MonoBehaviour
         return angle;
     }
 
-    /// <summary>
-    /// Finds the doorway opening of a room in WORLD space, using the prefab's
-    /// own door trigger objects (North_Door, South_Door, East_Door, West_Door).
-    /// </summary>
     bool TryGetDoorway(GameObject instance, GeneratedRoom room, int worldDirection, out Vector3 centre, out float width)
     {
         centre = Vector3.zero;
         width = 0f;
 
-        // Which side of the PREFAB is this world direction, after rotation?
         int localDir = IndexFromAngle(directionAngle[worldDirection] - room.rotationY);
         if (localDir < 0) return false;
 
@@ -772,8 +808,6 @@ public class DungeonGenerator : MonoBehaviour
         BoxCollider doorBox = doorway.GetComponent<BoxCollider>();
         if (doorBox == null) return false;
 
-        // Work out the doorway box in world space from its 8 corners.
-        // (Done by hand because a disabled collider reports empty bounds.)
         Vector3 min = new Vector3(float.MaxValue, float.MaxValue, float.MaxValue);
         Vector3 max = new Vector3(float.MinValue, float.MinValue, float.MinValue);
 
@@ -860,16 +894,5 @@ public class DungeonGenerator : MonoBehaviour
         }
 
         return bounds;
-    }
-
-    string GetRoomName(RoomDifficulty difficulty)
-    {
-        switch (difficulty)
-        {
-            case RoomDifficulty.Easy: return "EasyRoom";
-            case RoomDifficulty.Medium: return "MediumRoom";
-            case RoomDifficulty.Hard: return "HardRoom";
-            default: return "PlainRoom";
-        }
     }
 }

@@ -1806,7 +1806,19 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1809495234291153031, guid: b84aee064f2741e45ae830e88c0e64ea, type: 3}
       propertyPath: m_Name
-      value: Sanctuary
+      value: Sanctuary - Stage 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 4209754896419278080, guid: b84aee064f2741e45ae830e88c0e64ea, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: -2.293
+      objectReference: {fileID: 0}
+    - target: {fileID: 4209754896419278080, guid: b84aee064f2741e45ae830e88c0e64ea, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 1.13
+      objectReference: {fileID: 0}
+    - target: {fileID: 4209754896419278080, guid: b84aee064f2741e45ae830e88c0e64ea, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 8.003
       objectReference: {fileID: 0}
     - target: {fileID: 4564239781057517097, guid: b84aee064f2741e45ae830e88c0e64ea, type: 3}
       propertyPath: m_LocalPosition.y

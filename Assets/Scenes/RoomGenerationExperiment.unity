@@ -624,6 +624,55 @@ CapsuleCollider:
   m_Height: 3.6380508
   m_Direction: 1
   m_Center: {x: 0.0643861, y: 0.28268752, z: 0.01332922}
+--- !u!1 &805144616
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 805144618}
+  - component: {fileID: 805144617}
+  m_Layer: 0
+  m_Name: Door Trigger
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &805144617
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 805144616}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3f9ca175a013058478eb3bf9b1d877c7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::RoomDoorController
+  panToDoorTime: 0.6
+  holdTime: 0.5
+  panBackTime: 0.6
+  vanishDuration: 0.7
+  vanishEffectPrefab: {fileID: 0}
+--- !u!4 &805144618
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 805144616}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -239.27504, y: -56.5, z: -25.89495}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &883600286
 GameObject:
   m_ObjectHideFlags: 0
@@ -1196,6 +1245,11 @@ MonoBehaviour:
   fadeDuration: 0.35
   spawnInset: 2
   doorCooldown: 0.75
+  cameraFollowScript: {fileID: 2110360900}
+  maxPanDistance: 14
+  onEscaped:
+    m_PersistentCalls:
+      m_Calls: []
   enableFallSafety: 1
   fallLimit: 12
   pitFallLimit: 100
@@ -1236,7 +1290,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!64 &2013083646
 MeshCollider:
   m_ObjectHideFlags: 0
@@ -2514,7 +2568,141 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5ae3d8875b071ca48a0b8124ad9e9359, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DungeonGenerator
-  roomCount: 7
+  stages:
+  - label: Stage 1
+    straightPath: 0
+    variants:
+    - label: stage1
+      prefab: {fileID: 1809495234291153031, guid: b84aee064f2741e45ae830e88c0e64ea, type: 3}
+      fixedLayout: 0
+      entryDoor: 2
+      exitDoor: 3
+    - label: stage1 varient 1
+      prefab: {fileID: 907690292275475667, guid: f98c3063290ada34a92ed8435a31e54f, type: 3}
+      fixedLayout: 0
+      entryDoor: 2
+      exitDoor: 3
+    - label: stage1 varient 2
+      prefab: {fileID: 8084173773750011297, guid: dc71b10c7e365484e938a5c33bb63918, type: 3}
+      fixedLayout: 0
+      entryDoor: 2
+      exitDoor: 3
+  - label: 'Stage2 '
+    straightPath: 0
+    variants:
+    - label: Stage 2 Varient 1
+      prefab: {fileID: 6728579901547367051, guid: c2e02fe7ceb690f408ff90cc72d4d5e2, type: 3}
+      fixedLayout: 0
+      entryDoor: 2
+      exitDoor: 3
+    - label: Stage 2 Varient 2
+      prefab: {fileID: 8580167336512438199, guid: 8967a9c3e73f71b4fbc84c71f3dc568a, type: 3}
+      fixedLayout: 0
+      entryDoor: 2
+      exitDoor: 3
+    - label: Stage 2 Varient 2
+      prefab: {fileID: 8668192742688664676, guid: 72336db0c427db54994d24a127f72773, type: 3}
+      fixedLayout: 0
+      entryDoor: 2
+      exitDoor: 3
+  - label: Stage3
+    straightPath: 0
+    variants:
+    - label: Stage 3
+      prefab: {fileID: 3408552713115284082, guid: 6159958f54b54b14a9eb7839a1ccdbf7, type: 3}
+      fixedLayout: 0
+      entryDoor: 2
+      exitDoor: 3
+    - label: Stage 3.1
+      prefab: {fileID: 1039427135809883537, guid: 5f8329c75082a30459652b65aa674115, type: 3}
+      fixedLayout: 0
+      entryDoor: 2
+      exitDoor: 3
+    - label: Stage 3.2
+      prefab: {fileID: 4869288307148682044, guid: 117c1dbe58399244b9f98509a738aa0c, type: 3}
+      fixedLayout: 0
+      entryDoor: 2
+      exitDoor: 3
+  - label: Stage 4
+    straightPath: 0
+    variants:
+    - label: Stage4
+      prefab: {fileID: 2696819195885411881, guid: 00b2c2c84182d4c4fadb1ac3344d95d2, type: 3}
+      fixedLayout: 0
+      entryDoor: 2
+      exitDoor: 3
+    - label: Stage4.1
+      prefab: {fileID: 9086346390491164206, guid: 231c06f22ee9f1c4a80dc65a2a25f5ef, type: 3}
+      fixedLayout: 0
+      entryDoor: 2
+      exitDoor: 3
+    - label: Stage4.2
+      prefab: {fileID: 221310080180155606, guid: a9c3d0435f152ef4787772198873b2ee, type: 3}
+      fixedLayout: 0
+      entryDoor: 2
+      exitDoor: 3
+  - label: Stage 5
+    straightPath: 0
+    variants:
+    - label: Stage 5
+      prefab: {fileID: 677237181704889535, guid: 7310142b6daf5914db4898e7a142c9ae, type: 3}
+      fixedLayout: 0
+      entryDoor: 2
+      exitDoor: 3
+    - label: Stage 5.1
+      prefab: {fileID: 784004067213077953, guid: ee4efb49da2b43240a1d7d19f2276c04, type: 3}
+      fixedLayout: 0
+      entryDoor: 2
+      exitDoor: 3
+    - label: Stage 5.1
+      prefab: {fileID: 8545735525869373121, guid: ef9ba297b5b14924d8c099d2b7637420, type: 3}
+      fixedLayout: 0
+      entryDoor: 2
+      exitDoor: 3
+  - label: Stage 6
+    straightPath: 0
+    variants:
+    - label: Stage 6
+      prefab: {fileID: 6525605344846959027, guid: 0bb488185ab63b54493ef6051b27d5f3, type: 3}
+      fixedLayout: 0
+      entryDoor: 2
+      exitDoor: 3
+    - label: Stage 6
+      prefab: {fileID: 4148242662601099168, guid: ceb9de4dbf949a447aee897e7522acba, type: 3}
+      fixedLayout: 0
+      entryDoor: 2
+      exitDoor: 3
+    - label: Stage 6
+      prefab: {fileID: 4438983709371955103, guid: d00fc080262967c45943f29bee97bd08, type: 3}
+      fixedLayout: 0
+      entryDoor: 2
+      exitDoor: 3
+  - label: Stage 7
+    straightPath: 0
+    variants:
+    - label: Stage
+      prefab: {fileID: 5412307735420802513, guid: 1f09d4ac4664c51458a841ceff5fca51, type: 3}
+      fixedLayout: 0
+      entryDoor: 2
+      exitDoor: 3
+    - label: Stage7.1
+      prefab: {fileID: 6330579224780247176, guid: 21cf42ec40c224c49a1b9c5bc3692dfa, type: 3}
+      fixedLayout: 0
+      entryDoor: 2
+      exitDoor: 3
+    - label: Stage7.2
+      prefab: {fileID: 6289970508389824329, guid: be213784990daa74691ec87ec04d0781, type: 3}
+      fixedLayout: 0
+      entryDoor: 2
+      exitDoor: 3
+  - label: Stage 8
+    straightPath: 0
+    variants:
+    - label: Stage
+      prefab: {fileID: 7118883496252227511, guid: e07fc496d22be574da3d65d1ab1f631c, type: 3}
+      fixedLayout: 0
+      entryDoor: 2
+      exitDoor: 3
   gridSize: {x: 9, y: 9}
   startPosition: {x: 4, y: 4}
   dungeonOrigin: {x: 0, y: -0.81, z: -6.61}
@@ -2523,29 +2711,13 @@ MonoBehaviour:
   gapBetweenRooms: 2
   horizontalRoomSpacing: 70.04213
   verticalRoomSpacing: 79.54319
-  plainRooms:
-  - {fileID: 1809495234291153031, guid: b84aee064f2741e45ae830e88c0e64ea, type: 3}
-  easyRooms:
-  - prefab: {fileID: 1809495234291153031, guid: b84aee064f2741e45ae830e88c0e64ea, type: 3}
-    entryDoor: 2
-    exitDoor: 3
-  - prefab: {fileID: 6728579901547367051, guid: c2e02fe7ceb690f408ff90cc72d4d5e2, type: 3}
-    entryDoor: 2
-    exitDoor: 3
-  mediumRooms:
-  - prefab: {fileID: 102067808327496252, guid: 9ecbea065ac63ef479c193080075780b, type: 3}
-    entryDoor: 2
-    exitDoor: 3
-  - prefab: {fileID: 2696819195885411881, guid: 00b2c2c84182d4c4fadb1ac3344d95d2, type: 3}
-    entryDoor: 2
-    exitDoor: 3
-  hardRooms:
-  - prefab: {fileID: 1809495234291153031, guid: b84aee064f2741e45ae830e88c0e64ea, type: 3}
-    entryDoor: 2
-    exitDoor: 3
-  - prefab: {fileID: 1809495234291153031, guid: b84aee064f2741e45ae830e88c0e64ea, type: 3}
-    entryDoor: 2
-    exitDoor: 2
+  doorTag: Door
+  unlockTriggerName: PlayerHolder
+  vanishEffectPrefab: {fileID: 0}
+  vanishDuration: 0.7
+  panToDoorTime: 0.6
+  holdOnDoorTime: 0.5
+  panBackTime: 0.6
   doorTriggerWidth: 5
   doorTriggerHeight: 4
   doorTriggerDepth: 3
@@ -2578,3 +2750,4 @@ SceneRoots:
   - {fileID: 785316743}
   - {fileID: 1357694312}
   - {fileID: 1710096773}
+  - {fileID: 805144618}
