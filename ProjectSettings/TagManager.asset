@@ -9,6 +9,7 @@ TagManager:
   - 'Platform and Combat Room '
   - 'Platforming Room '
   - Enemy
+  - Door
   layers:
   - Default
   - TransparentFX
