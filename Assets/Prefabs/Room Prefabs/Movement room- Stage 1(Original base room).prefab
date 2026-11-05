@@ -93,7 +93,7 @@ Transform:
   m_GameObject: {fileID: 1579741192573058165}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0.65, z: 0.04}
+  m_LocalPosition: {x: 0, y: 0, z: 0.04}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -292,18 +292,18 @@ ParticleSystem:
       maxColor: {r: 0.97735846, g: 0.48499104, b: 0.48499104, a: 1}
       maxGradient:
         serializedVersion: 2
-        key0: {r: 1, g: 1, b: 1, a: 1}
-        key1: {r: 0.99542475, g: 1, b: 0.035848916, a: 1}
-        key2: {r: 0.9938142, g: 1, b: 0.26226407, a: 0}
-        key3: {r: 1, g: 0.99197125, b: 0.64716977, a: 0}
+        key0: {r: 1, g: 0.911615, b: 0.035294116, a: 1}
+        key1: {r: 1, g: 0.68895704, b: 0, a: 1}
+        key2: {r: 1, g: 1, b: 1, a: 0}
+        key3: {r: 0, g: 0, b: 0, a: 0}
         key4: {r: 0, g: 0, b: 0, a: 0}
         key5: {r: 0, g: 0, b: 0, a: 0}
         key6: {r: 0, g: 0, b: 0, a: 0}
         key7: {r: 0, g: 0, b: 0, a: 0}
         ctime0: 0
-        ctime1: 29221
-        ctime2: 39244
-        ctime3: 65535
+        ctime1: 23053
+        ctime2: 65535
+        ctime3: 0
         ctime4: 0
         ctime5: 0
         ctime6: 0
@@ -318,7 +318,7 @@ ParticleSystem:
         atime7: 0
         m_Mode: 0
         m_ColorSpace: 0
-        m_NumColorKeys: 4
+        m_NumColorKeys: 3
         m_NumAlphaKeys: 2
       minGradient:
         serializedVersion: 2
@@ -353,7 +353,7 @@ ParticleSystem:
     startSize:
       serializedVersion: 2
       minMaxState: 0
-      scalar: 12.25
+      scalar: 6.44
       minScalar: 1
       maxCurve:
         serializedVersion: 2
@@ -406,7 +406,7 @@ ParticleSystem:
     startSizeY:
       serializedVersion: 2
       minMaxState: 0
-      scalar: 7.54
+      scalar: 1
       minScalar: 1
       maxCurve:
         serializedVersion: 2
@@ -459,7 +459,7 @@ ParticleSystem:
     startSizeZ:
       serializedVersion: 2
       minMaxState: 0
-      scalar: 5.75
+      scalar: 1
       minScalar: 1
       maxCurve:
         serializedVersion: 2
@@ -672,7 +672,7 @@ ParticleSystem:
     gravitySource: 0
     maxNumParticles: 1000
     customEmitterVelocity: {x: 0, y: 0, z: 0}
-    size3D: 1
+    size3D: 0
     rotation3D: 0
     gravityModifier:
       serializedVersion: 2
@@ -738,7 +738,7 @@ ParticleSystem:
     donutRadius: 0.2
     m_Position: {x: 0, y: 0, z: 0}
     m_Rotation: {x: 0, y: 0, z: 0}
-    m_Scale: {x: 4.12, y: 1.59, z: 1}
+    m_Scale: {x: 1, y: 1, z: 1}
     placementMode: 0
     m_MeshMaterialIndex: 0
     m_MeshNormalOffset: 0
@@ -817,7 +817,7 @@ ParticleSystem:
     sphericalDirectionAmount: 0
     randomPositionAmount: 0
     radius:
-      value: 0.24
+      value: 0.4
       mode: 0
       spread: 0
       speed:
@@ -1366,7 +1366,7 @@ ParticleSystem:
         m_RotationOrder: 4
     separateAxes: 0
   ColorModule:
-    enabled: 1
+    enabled: 0
     gradient:
       serializedVersion: 2
       minMaxState: 1
@@ -1374,8 +1374,8 @@ ParticleSystem:
       maxColor: {r: 1, g: 1, b: 1, a: 1}
       maxGradient:
         serializedVersion: 2
-        key0: {r: 1, g: 0.6772191, b: 0.013207495, a: 1}
-        key1: {r: 0.9883168, g: 1, b: 0, a: 1}
+        key0: {r: 1, g: 1, b: 1, a: 1}
+        key1: {r: 1, g: 1, b: 1, a: 1}
         key2: {r: 0, g: 0, b: 0, a: 0}
         key3: {r: 0, g: 0, b: 0, a: 0}
         key4: {r: 0, g: 0, b: 0, a: 0}
@@ -1399,7 +1399,7 @@ ParticleSystem:
         atime6: 0
         atime7: 0
         m_Mode: 0
-        m_ColorSpace: 0
+        m_ColorSpace: -1
         m_NumColorKeys: 2
         m_NumAlphaKeys: 2
       minGradient:
@@ -1434,7 +1434,7 @@ ParticleSystem:
         m_NumAlphaKeys: 2
   UVModule:
     serializedVersion: 2
-    enabled: 1
+    enabled: 0
     mode: 0
     timeMode: 0
     fps: 30
@@ -5581,8 +5581,8 @@ Transform:
   m_GameObject: {fileID: 8214075567890543285}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -0.6258088, y: 1.65, z: 6.719245}
-  m_LocalScale: {x: 0.17126322, y: 0.1910544, z: 0.22486874}
+  m_LocalPosition: {x: -0.6258088, y: 0.64, z: 6.719245}
+  m_LocalScale: {x: 0.1269642, y: 0.16591899, z: 0.18381365}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 1675707528509539127}
@@ -5693,7 +5693,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DoorUnlockItem
   floatHeight: 0.35
-  floatSpeed: 2
+  floatSpeed: 0.5
   rotationSpeed: 90
   idleParticles: {fileID: 551970985554380795}
   pickupEffectPrefab: {fileID: 1579741192573058165}
