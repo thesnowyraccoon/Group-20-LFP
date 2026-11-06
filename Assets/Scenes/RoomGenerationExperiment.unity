@@ -653,7 +653,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3f9ca175a013058478eb3bf9b1d877c7, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::RoomDoorController
-  panToDoorTime: 0.6
+  panToDoorTime: 0.8
   holdTime: 0.5
   panBackTime: 0.6
   vanishDuration: 0.7
@@ -1245,7 +1245,7 @@ MonoBehaviour:
   fadeDuration: 0.35
   spawnInset: 2
   doorCooldown: 0.75
-  cameraFollowScript: {fileID: 2110360900}
+  cameraFollowScript: {fileID: 1357694311}
   maxPanDistance: 14
   onEscaped:
     m_PersistentCalls:
