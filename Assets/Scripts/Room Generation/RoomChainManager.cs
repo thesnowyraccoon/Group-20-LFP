@@ -37,6 +37,10 @@ public class RoomChainManager : MonoBehaviour
         public float halfWidth;
         public float halfHeight;
         public float floorTopY;
+
+        // World position of the doorway the player enters through (if found).
+        public bool hasEntryPoint;
+        public Vector3 entryPoint;
     }
 
     [Header("Transition")]
@@ -62,6 +66,14 @@ public class RoomChainManager : MonoBehaviour
     public float pitFallLimit = 100f;
     public float insideRoomMargin = 2f;
     public float groundSearchRadius = 8f;
+
+    [Header("Spawn Ground Search")]
+    [Tooltip("How far ABOVE the room's base floor height ground is still accepted (raised floor pieces). " +
+             "Keep this below your ceiling height so the ceiling is not mistaken for ground.")]
+    public float groundSearchAbove = 4f;
+
+    [Tooltip("How far BELOW the room's base floor height ground is still accepted (lowered floor pieces).")]
+    public float groundSearchBelow = 10f;
 
     List<RoomEntry> rooms = new List<RoomEntry>();
     int currentIndex;
@@ -351,9 +363,20 @@ public class RoomChainManager : MonoBehaviour
         bool movingSideways = (travelDirection == 2 || travelDirection == 3);
         float halfToDoor = movingSideways ? room.halfWidth : room.halfHeight;
 
-        float distanceFromMiddle = Mathf.Max(0f, halfToDoor - spawnInset);
+        Vector3 nominal;
 
-        Vector3 nominal = room.worldPosition - travelDirWorld * distanceFromMiddle;
+        if (room.hasEntryPoint)
+        {
+            // Start at the real entrance doorway and step inward by spawnInset.
+            nominal = new Vector3(room.entryPoint.x, room.floorTopY, room.entryPoint.z)
+                      + travelDirWorld * spawnInset;
+        }
+        else
+        {
+            // Fallback: middle of the entrance wall.
+            float distanceFromMiddle = Mathf.Max(0f, halfToDoor - spawnInset);
+            nominal = room.worldPosition - travelDirWorld * distanceFromMiddle;
+        }
 
         Vector3 spawnPosition = FindGroundedSpawn(nominal, travelDirWorld, room);
 
@@ -389,8 +412,11 @@ public class RoomChainManager : MonoBehaviour
             }
         }
 
-        Debug.LogWarning("RoomChainManager: no solid ground found near the spawn point. " +
-                         "Using the floor height instead.");
+        Debug.LogWarning("RoomChainManager: no solid ground found near the spawn point " + nominal +
+                         " in " + (room.instance != null ? room.instance.name : "room") +
+                         " (searched Y " + (room.floorTopY - groundSearchBelow).ToString("F2") +
+                         " to " + (room.floorTopY + groundSearchAbove).ToString("F2") +
+                         "). Using the floor height instead.");
 
         return new Vector3(nominal.x, GroundToTransformY(room.floorTopY), nominal.z);
     }
@@ -399,12 +425,19 @@ public class RoomChainManager : MonoBehaviour
     {
         groundY = 0f;
 
-        Vector3 origin = new Vector3(point.x, floorTopY + 6f, point.z);
+        float minY = floorTopY - groundSearchBelow;
+        float maxY = floorTopY + groundSearchAbove;
+
+        // Start the ray a little above the highest accepted ground, and let it
+        // travel far enough to reach the lowest accepted ground.
+        float startY = maxY + 2f;
+        Vector3 origin = new Vector3(point.x, startY, point.z);
+        float distance = (startY - minY) + 1f;
 
         RaycastHit[] hits = Physics.RaycastAll(
             origin,
             Vector3.down,
-            30f,
+            distance,
             ~0,
             QueryTriggerInteraction.Ignore
         );
@@ -417,7 +450,7 @@ public class RoomChainManager : MonoBehaviour
             if (playerTransform != null && hit.collider.transform.IsChildOf(playerTransform)) continue;
             if (hit.normal.y < 0.5f) continue;
 
-            if (hit.point.y < floorTopY - 1f || hit.point.y > floorTopY + 0.5f) continue;
+            if (hit.point.y < minY || hit.point.y > maxY) continue;
 
             if (hit.point.y > best)
             {

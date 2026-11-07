@@ -103,8 +103,13 @@ public class DungeonGenerator : MonoBehaviour
     public float doorTriggerOffset = 0.5f;
     public float doorTriggerSideMargin = 0.25f;
 
+    [Header("Floor Measuring")]
     [Tooltip("Name of the floor object inside your room prefabs.")]
     public string floorObjectName = "Floor";
+
+    [Tooltip("Any floor piece (or a parent of it, inside the Floor object) whose name CONTAINS this text is ignored when measuring the floor. " +
+             "Use it on pieces you raised or lowered, e.g. rename them 'FloorPiece_Ignore'. Not case sensitive. Leave empty to measure every piece.")]
+    public string floorIgnoreKeyword = "Ignore";
 
     // 0 = Up (+Z), 1 = Down (-Z), 2 = Right (+X), 3 = Left (-X)
     static readonly float[] directionAngle = { 0f, 180f, 90f, 270f };
@@ -414,8 +419,8 @@ public class DungeonGenerator : MonoBehaviour
 
             if (!floorFound)
             {
-                Debug.LogWarning("DungeonGenerator: no object named '" + floorObjectName +
-                                 "' found in " + prefab.name + ". Using the whole room instead.");
+                Debug.LogWarning("DungeonGenerator: no usable '" + floorObjectName +
+                                 "' pieces found in " + prefab.name + ". Using the whole room instead.");
             }
 
             Vector3 correction = targetPosition - floorBounds.center;
@@ -652,6 +657,13 @@ public class DungeonGenerator : MonoBehaviour
 
         foreach (GeneratedRoom room in generatedRooms)
         {
+            // Find where the player actually comes in, so the spawn point lines up
+            // with the real entrance doorway instead of the middle of the wall.
+            Vector3 entryCentre = Vector3.zero;
+            float entryWidth;
+            bool hasEntry = room.incomingDir >= 0 &&
+                            TryGetDoorway(room.spawnedInstance, room, room.incomingDir, out entryCentre, out entryWidth);
+
             entries.Add(new RoomChainManager.RoomEntry
             {
                 instance = room.spawnedInstance,
@@ -660,7 +672,9 @@ public class DungeonGenerator : MonoBehaviour
                 outgoingDir = room.outgoingDir,
                 halfWidth = room.halfWidth,
                 halfHeight = room.halfHeight,
-                floorTopY = room.floorTopY
+                floorTopY = room.floorTopY,
+                hasEntryPoint = hasEntry,
+                entryPoint = entryCentre
             });
         }
 
@@ -834,6 +848,9 @@ public class DungeonGenerator : MonoBehaviour
         return width > 0.05f;
     }
 
+    // Measures only the BASE floor pieces. Any piece whose name (or whose
+    // parent's name, up to the Floor object) contains floorIgnoreKeyword is
+    // skipped, so raised / lowered pieces don't distort the measurement.
     bool TryGetFloorBounds(GameObject room, out Bounds bounds)
     {
         Transform floor = FindShallowestChild(room.transform, floorObjectName);
@@ -842,20 +859,47 @@ public class DungeonGenerator : MonoBehaviour
         {
             Renderer[] renderers = floor.GetComponentsInChildren<Renderer>();
 
-            if (renderers.Length > 0)
+            bool started = false;
+            bounds = new Bounds(room.transform.position, Vector3.zero);
+
+            foreach (Renderer r in renderers)
             {
-                bounds = renderers[0].bounds;
+                if (IsIgnoredFloorPiece(r.transform, floor)) continue;
 
-                for (int i = 1; i < renderers.Length; i++)
+                if (!started)
                 {
-                    bounds.Encapsulate(renderers[i].bounds);
+                    bounds = r.bounds;
+                    started = true;
                 }
-
-                return true;
+                else
+                {
+                    bounds.Encapsulate(r.bounds);
+                }
             }
+
+            if (started) return true;
         }
 
         bounds = GetRendererBounds(room);
+        return false;
+    }
+
+    bool IsIgnoredFloorPiece(Transform piece, Transform floorRoot)
+    {
+        if (string.IsNullOrEmpty(floorIgnoreKeyword)) return false;
+
+        string key = floorIgnoreKeyword.ToLowerInvariant();
+        Transform t = piece;
+
+        // Walk up from the renderer to the Floor object, so a child mesh of an
+        // ignored parent is also ignored.
+        while (t != null)
+        {
+            if (t.name.ToLowerInvariant().Contains(key)) return true;
+            if (t == floorRoot) break;
+            t = t.parent;
+        }
+
         return false;
     }
 
