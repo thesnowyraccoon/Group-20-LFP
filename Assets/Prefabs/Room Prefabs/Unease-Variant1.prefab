@@ -10,7 +10,19 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 2696819195885411881, guid: 00b2c2c84182d4c4fadb1ac3344d95d2, type: 3}
       propertyPath: m_Name
-      value: Unease-Stage 4
+      value: Unease-Variant1
+      objectReference: {fileID: 0}
+    - target: {fileID: 6767064181491482631, guid: 00b2c2c84182d4c4fadb1ac3344d95d2, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: -1.88
+      objectReference: {fileID: 0}
+    - target: {fileID: 6767064181491482631, guid: 00b2c2c84182d4c4fadb1ac3344d95d2, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0.77
+      objectReference: {fileID: 0}
+    - target: {fileID: 6767064181491482631, guid: 00b2c2c84182d4c4fadb1ac3344d95d2, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 9.71
       objectReference: {fileID: 0}
     - target: {fileID: 8357125431055775534, guid: 00b2c2c84182d4c4fadb1ac3344d95d2, type: 3}
       propertyPath: m_LocalPosition.x

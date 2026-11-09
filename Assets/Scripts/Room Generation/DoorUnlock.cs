@@ -3,13 +3,14 @@ using UnityEngine;
 /// <summary>
 /// Visible collectible used to unlock a room's exit door.
 ///
-/// - Spins in place (optionally hovers upward, never below its start position)
+/// - Spins around the world Y axis (rotates this object directly)
+/// - Optionally hovers upward (never below its start position)
 /// - Uses LOCAL position, so moving/rotating the room after it spawns
 ///   doesn't break the animation
 /// - Optional idle particles and pickup effect
 /// - Trigger collider; opens the RoomDoorController when the player touches it
 ///
-/// Place this script on the visible PlayerHolder / capsule object.
+/// Place this script on the visible PlayerHolder / key object.
 /// </summary>
 [RequireComponent(typeof(Collider))]
 public class DoorUnlockItem : MonoBehaviour
@@ -20,7 +21,7 @@ public class DoorUnlockItem : MonoBehaviour
 
     [Header("Floating Animation")]
 
-    [Tooltip("OFF = the item only spins in place. ON = it also hovers up and down.")]
+    [Tooltip("OFF = the item stays at exactly one height and only spins. ON = it also hovers gently.")]
     public bool enableFloating = false;
 
     [Tooltip("How far the item rises ABOVE its starting position. It never goes below the start, so it can't sink into the floor.")]
@@ -59,7 +60,7 @@ public class DoorUnlockItem : MonoBehaviour
 
     [Header("Visual")]
 
-    [Tooltip("The visible model of the collectible. Leave empty if the model is on this object.")]
+    [Tooltip("The visible model of the collectible. Leave empty to hide every non-particle renderer under this object.")]
     public GameObject visualObject;
 
     // ------------------------------------------------------------
@@ -111,8 +112,6 @@ public class DoorUnlockItem : MonoBehaviour
 
     void OnEnable()
     {
-        // Rooms are switched on/off by RoomChainManager, so (re)start the
-        // grace timer and the idle particles every time the room activates.
         enabledTime = Time.time;
 
         if (!collected && idleParticles != null)
@@ -137,13 +136,11 @@ public class DoorUnlockItem : MonoBehaviour
     {
         if (!enableFloating)
         {
-            // Spin in place: hold the starting position exactly.
             transform.localPosition = startLocalPosition;
             return;
         }
 
-        // (sin + 1) / 2 runs from 0 to 1, so the item only ever moves UP
-        // from its start position and can never sink into the floor.
+        // (sin + 1) / 2 runs from 0 to 1, so the item only ever moves UP.
         float lift = (Mathf.Sin(Time.time * floatSpeed) + 1f) * 0.5f * floatHeight;
 
         Vector3 newPosition = startLocalPosition;
@@ -154,24 +151,20 @@ public class DoorUnlockItem : MonoBehaviour
 
     void RotateItem()
     {
-        transform.Rotate(Vector3.up, rotationSpeed * Time.deltaTime, Space.World);
+        transform.Rotate(
+            Vector3.up,
+            rotationSpeed * Time.deltaTime,
+            Space.World
+        );
     }
 
     // ------------------------------------------------------------
     // PLAYER COLLISION
     // ------------------------------------------------------------
 
-    void OnTriggerEnter(Collider other)
-    {
-        TryCollect(other);
-    }
+    void OnTriggerEnter(Collider other) { TryCollect(other); }
 
-    // Covers the case where the player is already standing inside the
-    // trigger when the grace period ends.
-    void OnTriggerStay(Collider other)
-    {
-        TryCollect(other);
-    }
+    void OnTriggerStay(Collider other) { TryCollect(other); }
 
     void TryCollect(Collider other)
     {
