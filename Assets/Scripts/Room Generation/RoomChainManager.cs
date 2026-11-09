@@ -416,9 +416,33 @@ public class RoomChainManager : MonoBehaviour
                          " in " + (room.instance != null ? room.instance.name : "room") +
                          " (searched Y " + (room.floorTopY - groundSearchBelow).ToString("F2") +
                          " to " + (room.floorTopY + groundSearchAbove).ToString("F2") +
-                         "). Using the floor height instead.");
+                         "). Floor height used: " + room.floorTopY.ToString("F2") +
+                         ". Colliders actually below that point (highest first): " +
+                         DescribeGroundBelow(nominal, room.floorTopY));
 
         return new Vector3(nominal.x, GroundToTransformY(room.floorTopY), nominal.z);
+    }
+
+    // Diagnostic only: lists what a long ray straight down finds at a point.
+    string DescribeGroundBelow(Vector3 point, float floorTopY)
+    {
+        Vector3 origin = new Vector3(point.x, floorTopY + 60f, point.z);
+
+        RaycastHit[] hits = Physics.RaycastAll(origin, Vector3.down, 200f, ~0, QueryTriggerInteraction.Ignore);
+
+        if (hits.Length == 0) return "NOTHING (no collider under this point at all).";
+
+        System.Array.Sort(hits, (a, b) => b.point.y.CompareTo(a.point.y));
+
+        string text = "";
+
+        for (int i = 0; i < hits.Length && i < 6; i++)
+        {
+            text += hits[i].collider.name + " at Y " + hits[i].point.y.ToString("F2") +
+                    " (normal Y " + hits[i].normal.y.ToString("F2") + "); ";
+        }
+
+        return text;
     }
 
     bool TryFindGround(Vector3 point, float floorTopY, out float groundY)

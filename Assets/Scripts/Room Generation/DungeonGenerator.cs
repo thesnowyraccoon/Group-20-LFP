@@ -53,6 +53,9 @@ public class DungeonGenerator : MonoBehaviour
         public float halfWidth;
         public float halfHeight;
         public float floorTopY;
+
+        public bool hasEntryPoint;
+        public Vector3 entryPoint;
     }
 
     // ------------------------------------------------------------------
@@ -446,6 +449,22 @@ public class DungeonGenerator : MonoBehaviour
             room.halfHeight = floorBounds.extents.z;
             room.floorTopY = floorBounds.max.y;
 
+            // Measure the entrance doorway NOW, before doors are switched on/off.
+            if (room.incomingDir >= 0)
+            {
+                Vector3 entryCentre;
+                float entryWidth;
+                room.hasEntryPoint = TryGetDoorway(instance, room, room.incomingDir, out entryCentre, out entryWidth);
+                room.entryPoint = entryCentre;
+
+                if (!room.hasEntryPoint)
+                {
+                    Debug.LogWarning("DungeonGenerator: could not find the ENTRANCE doorway in " + prefab.name +
+                                     " (direction " + room.incomingDir + "). Spawn falls back to the wall middle. " +
+                                     ListDoorLikeObjects(instance));
+                }
+            }
+
             bool[] localStatus = RemapStatusForRotation(room.status, rotationY);
 
             RoomBehaviour behaviour = instance.GetComponent<RoomBehaviour>();
@@ -614,7 +633,7 @@ public class DungeonGenerator : MonoBehaviour
         {
             Debug.LogWarning("DungeonGenerator: could not find the doorway object in " +
                              instance.name + " for direction " + doorDirection +
-                             ". Using the floor edge instead.");
+                             ". Using the floor edge instead. " + ListDoorLikeObjects(instance));
         }
 
         door.transform.position = triggerPosition;
@@ -657,13 +676,6 @@ public class DungeonGenerator : MonoBehaviour
 
         foreach (GeneratedRoom room in generatedRooms)
         {
-            // Find where the player actually comes in, so the spawn point lines up
-            // with the real entrance doorway instead of the middle of the wall.
-            Vector3 entryCentre = Vector3.zero;
-            float entryWidth;
-            bool hasEntry = room.incomingDir >= 0 &&
-                            TryGetDoorway(room.spawnedInstance, room, room.incomingDir, out entryCentre, out entryWidth);
-
             entries.Add(new RoomChainManager.RoomEntry
             {
                 instance = room.spawnedInstance,
@@ -673,8 +685,8 @@ public class DungeonGenerator : MonoBehaviour
                 halfWidth = room.halfWidth,
                 halfHeight = room.halfHeight,
                 floorTopY = room.floorTopY,
-                hasEntryPoint = hasEntry,
-                entryPoint = entryCentre
+                hasEntryPoint = room.hasEntryPoint,
+                entryPoint = room.entryPoint
             });
         }
 
@@ -814,30 +826,54 @@ public class DungeonGenerator : MonoBehaviour
         int localDir = IndexFromAngle(directionAngle[worldDirection] - room.rotationY);
         if (localDir < 0) return false;
 
-        string[] names = { "North_Door", "South_Door", "East_Door", "West_Door" };
+        // Accepted names per direction. Spaces, underscores and capitals are ignored,
+        // so "West_Door", "West Door", "westdoor", "Door Left" etc. all match.
+        string[][] accepted =
+        {
+            new[] { "northdoor", "doornorth", "doorup", "updoor" },
+            new[] { "southdoor", "doorsouth", "doordown", "downdoor" },
+            new[] { "eastdoor", "dooreast", "doorright", "rightdoor" },
+            new[] { "westdoor", "doorwest", "doorleft", "leftdoor" }
+        };
 
-        Transform doorway = FindShallowestChild(instance.transform, names[localDir]);
+        Transform doorway = FindDoorwayObject(instance.transform, accepted[localDir]);
         if (doorway == null) return false;
-
-        BoxCollider doorBox = doorway.GetComponent<BoxCollider>();
-        if (doorBox == null) return false;
 
         Vector3 min = new Vector3(float.MaxValue, float.MaxValue, float.MaxValue);
         Vector3 max = new Vector3(float.MinValue, float.MinValue, float.MinValue);
 
-        for (int i = 0; i < 8; i++)
+        BoxCollider doorBox = doorway.GetComponent<BoxCollider>();
+
+        if (doorBox != null)
         {
-            Vector3 sign = new Vector3(
-                (i & 1) == 0 ? -1f : 1f,
-                (i & 2) == 0 ? -1f : 1f,
-                (i & 4) == 0 ? -1f : 1f
-            );
+            for (int i = 0; i < 8; i++)
+            {
+                Vector3 sign = new Vector3(
+                    (i & 1) == 0 ? -1f : 1f,
+                    (i & 2) == 0 ? -1f : 1f,
+                    (i & 4) == 0 ? -1f : 1f
+                );
 
-            Vector3 localCorner = doorBox.center + Vector3.Scale(doorBox.size * 0.5f, sign);
-            Vector3 worldCorner = doorway.TransformPoint(localCorner);
+                Vector3 localCorner = doorBox.center + Vector3.Scale(doorBox.size * 0.5f, sign);
+                Vector3 worldCorner = doorway.TransformPoint(localCorner);
 
-            min = Vector3.Min(min, worldCorner);
-            max = Vector3.Max(max, worldCorner);
+                min = Vector3.Min(min, worldCorner);
+                max = Vector3.Max(max, worldCorner);
+            }
+        }
+        else
+        {
+            // No BoxCollider: fall back to any collider or renderer on the object.
+            Collider col = doorway.GetComponentInChildren<Collider>();
+            Renderer rend = doorway.GetComponentInChildren<Renderer>();
+
+            Bounds b;
+            if (col != null) b = col.bounds;
+            else if (rend != null) b = rend.bounds;
+            else return false;
+
+            min = b.min;
+            max = b.max;
         }
 
         centre = (min + max) * 0.5f;
@@ -846,6 +882,57 @@ public class DungeonGenerator : MonoBehaviour
         width = horizontal ? (max.z - min.z) : (max.x - min.x);
 
         return width > 0.05f;
+    }
+
+    // Shallowest child whose normalized name matches one of the accepted names.
+    // Prefers one that has a BoxCollider.
+    Transform FindDoorwayObject(Transform root, string[] acceptedNames)
+    {
+        Transform fallback = null;
+        Queue<Transform> queue = new Queue<Transform>();
+        queue.Enqueue(root);
+
+        while (queue.Count > 0)
+        {
+            Transform current = queue.Dequeue();
+
+            if (current != root)
+            {
+                string n = Normalize(current.name);
+
+                foreach (string a in acceptedNames)
+                {
+                    if (n != a) continue;
+
+                    if (current.GetComponent<BoxCollider>() != null) return current;
+                    if (fallback == null) fallback = current;
+                }
+            }
+
+            foreach (Transform child in current) queue.Enqueue(child);
+        }
+
+        return fallback;
+    }
+
+    // Lists every object in the room with "door" in its name, for the warnings.
+    string ListDoorLikeObjects(GameObject instance)
+    {
+        List<string> found = new List<string>();
+
+        foreach (Transform t in instance.GetComponentsInChildren<Transform>(true))
+        {
+            if (t == instance.transform) continue;
+
+            if (Normalize(t.name).Contains("door"))
+            {
+                found.Add(t.name + (t.GetComponent<BoxCollider>() != null ? " [BoxCollider]" : " [no BoxCollider]"));
+            }
+        }
+
+        return found.Count == 0
+            ? "Objects with 'door' in the name: NONE."
+            : "Objects with 'door' in the name: " + string.Join(", ", found);
     }
 
     // Measures only the BASE floor pieces. Any piece whose name (or whose
@@ -857,31 +944,79 @@ public class DungeonGenerator : MonoBehaviour
 
         if (floor != null)
         {
-            Renderer[] renderers = floor.GetComponentsInChildren<Renderer>();
+            List<Renderer> pieces = new List<Renderer>();
 
-            bool started = false;
-            bounds = new Bounds(room.transform.position, Vector3.zero);
-
-            foreach (Renderer r in renderers)
+            foreach (Renderer r in floor.GetComponentsInChildren<Renderer>())
             {
                 if (IsIgnoredFloorPiece(r.transform, floor)) continue;
-
-                if (!started)
-                {
-                    bounds = r.bounds;
-                    started = true;
-                }
-                else
-                {
-                    bounds.Encapsulate(r.bounds);
-                }
+                pieces.Add(r);
             }
 
-            if (started) return true;
+            if (pieces.Count > 0)
+            {
+                bounds = pieces[0].bounds;
+
+                for (int i = 1; i < pieces.Count; i++)
+                {
+                    bounds.Encapsulate(pieces[i].bounds);
+                }
+
+                // The floor HEIGHT comes from the most common floor level (by area),
+                // not from the highest piece. Raised or lowered pieces, or tall wall
+                // meshes inside the Floor object, can no longer drag the whole room's
+                // height up or down.
+                float baseTop = GetDominantFloorTop(pieces);
+
+                Vector3 min = bounds.min;
+                Vector3 max = bounds.max;
+                max.y = Mathf.Max(baseTop, min.y);
+                bounds.SetMinMax(min, max);
+
+                return true;
+            }
         }
 
         bounds = GetRendererBounds(room);
         return false;
+    }
+
+    // The top height shared by the largest total area of floor pieces.
+    float GetDominantFloorTop(List<Renderer> pieces)
+    {
+        const float bucketSize = 0.25f;
+
+        Dictionary<int, float> areaByBucket = new Dictionary<int, float>();
+        Dictionary<int, float> weightedTop = new Dictionary<int, float>();
+
+        foreach (Renderer r in pieces)
+        {
+            Bounds b = r.bounds;
+            float area = Mathf.Max(0.0001f, b.size.x * b.size.z);
+            int key = Mathf.RoundToInt(b.max.y / bucketSize);
+
+            if (!areaByBucket.ContainsKey(key))
+            {
+                areaByBucket[key] = 0f;
+                weightedTop[key] = 0f;
+            }
+
+            areaByBucket[key] += area;
+            weightedTop[key] += b.max.y * area;
+        }
+
+        int bestKey = 0;
+        float bestArea = -1f;
+
+        foreach (KeyValuePair<int, float> pair in areaByBucket)
+        {
+            if (pair.Value > bestArea)
+            {
+                bestArea = pair.Value;
+                bestKey = pair.Key;
+            }
+        }
+
+        return weightedTop[bestKey] / areaByBucket[bestKey];
     }
 
     bool IsIgnoredFloorPiece(Transform piece, Transform floorRoot)
