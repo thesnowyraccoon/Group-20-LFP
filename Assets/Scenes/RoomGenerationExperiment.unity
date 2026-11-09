@@ -1015,7 +1015,7 @@ MonoBehaviour:
       Owner: {fileID: 1357694310}
       Enabled: 1
       Input:
-        InputAction: {fileID: -3981973999567685821, guid: 0cb2dea534fadf147ac8e78ebd9d42a2, type: 3}
+        InputAction: {fileID: 765482150951512608, guid: 0cb2dea534fadf147ac8e78ebd9d42a2, type: 3}
         Gain: 5
         CancelDeltaTime: 0
       InputValue: 0
@@ -1026,7 +1026,7 @@ MonoBehaviour:
       Owner: {fileID: 1357694310}
       Enabled: 1
       Input:
-        InputAction: {fileID: -3981973999567685821, guid: 0cb2dea534fadf147ac8e78ebd9d42a2, type: 3}
+        InputAction: {fileID: 765482150951512608, guid: 0cb2dea534fadf147ac8e78ebd9d42a2, type: 3}
         Gain: 3
         CancelDeltaTime: 0
       InputValue: 0
@@ -1037,7 +1037,7 @@ MonoBehaviour:
       Owner: {fileID: 1357694310}
       Enabled: 1
       Input:
-        InputAction: {fileID: 7695446467928101912, guid: 0cb2dea534fadf147ac8e78ebd9d42a2, type: 3}
+        InputAction: {fileID: 6240969308177333660, guid: 052faaac586de48259a63d0c4782560b, type: 3}
         Gain: -1
         CancelDeltaTime: 0
       InputValue: 0
@@ -1246,7 +1246,9 @@ MonoBehaviour:
   spawnInset: 2
   doorCooldown: 0.75
   cameraFollowScript: {fileID: 1357694311}
-  maxPanDistance: 14
+  doorViewportPosition: {x: 0.5, y: 0.5}
+  doorFocusHeight: 1
+  maxPanDistance: 100
   onEscaped:
     m_PersistentCalls:
       m_Calls: []
@@ -2724,6 +2726,7 @@ MonoBehaviour:
   doorTriggerOffset: 0.5
   doorTriggerSideMargin: 0.25
   floorObjectName: Floor
+  floorIgnoreKeyword: Ignore
 --- !u!4 &2110360901
 Transform:
   m_ObjectHideFlags: 0

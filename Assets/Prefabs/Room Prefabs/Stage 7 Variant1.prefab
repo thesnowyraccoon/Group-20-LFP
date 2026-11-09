@@ -48,6 +48,18 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 2613727297619539664, guid: 1f09d4ac4664c51458a841ceff5fca51, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2613727297619539664, guid: 1f09d4ac4664c51458a841ceff5fca51, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: -0.606
+      objectReference: {fileID: 0}
+    - target: {fileID: 2613727297619539664, guid: 1f09d4ac4664c51458a841ceff5fca51, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: -0.768
+      objectReference: {fileID: 0}
     - target: {fileID: 5412307735420802513, guid: 1f09d4ac4664c51458a841ceff5fca51, type: 3}
       propertyPath: m_Name
       value: Stage 7 Variant1
