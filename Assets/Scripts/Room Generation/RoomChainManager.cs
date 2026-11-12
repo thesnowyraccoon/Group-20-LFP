@@ -38,7 +38,8 @@ public class RoomChainManager : MonoBehaviour
         public float halfHeight;
         public float floorTopY;
 
-        // World position of the doorway the player enters through (if found).
+        // World position of the ENTRANCE doorway centre, measured by DungeonGenerator.
+        // hasEntryPoint is false if the doorway object couldn't be found.
         public bool hasEntryPoint;
         public Vector3 entryPoint;
     }
@@ -53,8 +54,16 @@ public class RoomChainManager : MonoBehaviour
              "Leave empty to auto-detect a script on the camera that implements ICameraSnap.")]
     public MonoBehaviour cameraFollowScript;
 
-    [Tooltip("Limits how far the camera can slide away from the player when looking at a door.")]
-    public float maxPanDistance = 14f;
+    [Tooltip("Where on the screen the door should end up. (0.5, 0.5) = dead centre. " +
+             "X and Y go from 0 (left / bottom) to 1 (right / top).")]
+    public Vector2 doorViewportPosition = new Vector2(0.5f, 0.5f);
+
+    [Tooltip("Aim this far ABOVE the door's pivot, so a door whose pivot is on the floor is framed by its middle.")]
+    public float doorFocusHeight = 1f;
+
+    [Tooltip("Safety limit on how far the camera may slide from its starting position (flat distance). " +
+             "0 = no limit. Keep this larger than your biggest room, or far doors will end up off-screen.")]
+    public float maxPanDistance = 60f;
 
     [Header("Escape")]
     [Tooltip("Fires after the player walks through the final door and the screen has faded to black. Hook up your win screen / scene load here.")]
@@ -66,14 +75,6 @@ public class RoomChainManager : MonoBehaviour
     public float pitFallLimit = 100f;
     public float insideRoomMargin = 2f;
     public float groundSearchRadius = 8f;
-
-    [Header("Spawn Ground Search")]
-    [Tooltip("How far ABOVE the room's base floor height ground is still accepted (raised floor pieces). " +
-             "Keep this below your ceiling height so the ceiling is not mistaken for ground.")]
-    public float groundSearchAbove = 4f;
-
-    [Tooltip("How far BELOW the room's base floor height ground is still accepted (lowered floor pieces).")]
-    public float groundSearchBelow = 10f;
 
     List<RoomEntry> rooms = new List<RoomEntry>();
     int currentIndex;
@@ -209,8 +210,8 @@ public class RoomChainManager : MonoBehaviour
     // ------------------------------------------------------------------
 
     /// <summary>
-    /// Locks the player and slides the camera toward a world point
-    /// (e.g. the door). Always follow with PanCameraBack().
+    /// Locks the player and slides the camera so the focus point (the door)
+    /// ends up at doorViewportPosition on screen. Always follow with PanCameraBack().
     /// </summary>
     public IEnumerator PanCameraTo(Vector3 focusPoint, float duration)
     {
@@ -236,13 +237,61 @@ public class RoomChainManager : MonoBehaviour
             if (pausedFollow != null) pausedFollow.enabled = false;
         }
 
-        // Move the camera by the same offset that separates the door from the player,
-        // so the door ends up where the player normally appears on screen.
-        Vector3 delta = focusPoint - playerTransform.position;
-        delta.y = 0f;
-        delta = Vector3.ClampMagnitude(delta, maxPanDistance);
+        Vector3 target = CalculatePanTarget(cam, focusPoint);
 
-        yield return MoveCamera(panCamera.position, panStartPosition + delta, duration);
+        yield return MoveCamera(panCamera.position, target, duration);
+    }
+
+    /// <summary>
+    /// Works out where the camera has to be for the door to appear at
+    /// doorViewportPosition. A ray is fired from the camera through that
+    /// screen point down to the door's height; the gap between where the ray
+    /// lands and the door is exactly how far the camera has to slide.
+    /// </summary>
+    Vector3 CalculatePanTarget(Camera cam, Vector3 focusPoint)
+    {
+        Vector3 focus = focusPoint + Vector3.up * doorFocusHeight;
+
+        Vector3 delta;
+
+        Ray ray = cam.ViewportPointToRay(new Vector3(doorViewportPosition.x, doorViewportPosition.y, 0f));
+        Plane doorHeightPlane = new Plane(Vector3.up, focus);
+
+        if (doorHeightPlane.Raycast(ray, out float enter) && enter > 0f)
+        {
+            Vector3 whereCameraLooks = ray.GetPoint(enter);
+            delta = focus - whereCameraLooks;
+        }
+        else
+        {
+            // Camera is looking level or upward, so the ray never reaches the plane.
+            // Fall back to simply moving by the player-to-door offset.
+            delta = focus - playerTransform.position;
+        }
+
+        delta.y = 0f;
+
+        Vector3 target = panCamera.position + delta;
+
+        if (maxPanDistance > 0f)
+        {
+            Vector3 fromStart = target - panStartPosition;
+            fromStart.y = 0f;
+
+            if (fromStart.magnitude > maxPanDistance)
+            {
+                Debug.LogWarning("RoomChainManager: the door is further than Max Pan Distance (" + maxPanDistance +
+                                 ") from the camera, so it may not be fully in frame. Increase Max Pan Distance.");
+
+                fromStart = Vector3.ClampMagnitude(fromStart, maxPanDistance);
+                target = new Vector3(panStartPosition.x + fromStart.x, panCamera.position.y, panStartPosition.z + fromStart.z);
+            }
+        }
+
+        // Height never changes during a pan.
+        target.y = panCamera.position.y;
+
+        return target;
     }
 
     public IEnumerator PanCameraBack(float duration)
@@ -360,21 +409,23 @@ public class RoomChainManager : MonoBehaviour
 
         Vector3 travelDirWorld = DirectionToWorldVector(travelDirection);
 
-        bool movingSideways = (travelDirection == 2 || travelDirection == 3);
-        float halfToDoor = movingSideways ? room.halfWidth : room.halfHeight;
-
         Vector3 nominal;
 
         if (room.hasEntryPoint)
         {
-            // Start at the real entrance doorway and step inward by spawnInset.
-            nominal = new Vector3(room.entryPoint.x, room.floorTopY, room.entryPoint.z)
-                      + travelDirWorld * spawnInset;
+            // Step inward from the middle of the entrance doorway, so the player
+            // appears lined up with the door they just came through.
+            nominal = room.entryPoint + travelDirWorld * spawnInset;
+            nominal.y = room.floorTopY;
         }
         else
         {
-            // Fallback: middle of the entrance wall.
+            // Fallback: the middle of the wall the player came in through.
+            bool movingSideways = (travelDirection == 2 || travelDirection == 3);
+            float halfToDoor = movingSideways ? room.halfWidth : room.halfHeight;
+
             float distanceFromMiddle = Mathf.Max(0f, halfToDoor - spawnInset);
+
             nominal = room.worldPosition - travelDirWorld * distanceFromMiddle;
         }
 
@@ -412,56 +463,22 @@ public class RoomChainManager : MonoBehaviour
             }
         }
 
-        Debug.LogWarning("RoomChainManager: no solid ground found near the spawn point " + nominal +
-                         " in " + (room.instance != null ? room.instance.name : "room") +
-                         " (searched Y " + (room.floorTopY - groundSearchBelow).ToString("F2") +
-                         " to " + (room.floorTopY + groundSearchAbove).ToString("F2") +
-                         "). Floor height used: " + room.floorTopY.ToString("F2") +
-                         ". Colliders actually below that point (highest first): " +
-                         DescribeGroundBelow(nominal, room.floorTopY));
+        Debug.LogWarning("RoomChainManager: no solid ground found near the spawn point. " +
+                         "Using the floor height instead.");
 
         return new Vector3(nominal.x, GroundToTransformY(room.floorTopY), nominal.z);
-    }
-
-    // Diagnostic only: lists what a long ray straight down finds at a point.
-    string DescribeGroundBelow(Vector3 point, float floorTopY)
-    {
-        Vector3 origin = new Vector3(point.x, floorTopY + 60f, point.z);
-
-        RaycastHit[] hits = Physics.RaycastAll(origin, Vector3.down, 200f, ~0, QueryTriggerInteraction.Ignore);
-
-        if (hits.Length == 0) return "NOTHING (no collider under this point at all).";
-
-        System.Array.Sort(hits, (a, b) => b.point.y.CompareTo(a.point.y));
-
-        string text = "";
-
-        for (int i = 0; i < hits.Length && i < 6; i++)
-        {
-            text += hits[i].collider.name + " at Y " + hits[i].point.y.ToString("F2") +
-                    " (normal Y " + hits[i].normal.y.ToString("F2") + "); ";
-        }
-
-        return text;
     }
 
     bool TryFindGround(Vector3 point, float floorTopY, out float groundY)
     {
         groundY = 0f;
 
-        float minY = floorTopY - groundSearchBelow;
-        float maxY = floorTopY + groundSearchAbove;
-
-        // Start the ray a little above the highest accepted ground, and let it
-        // travel far enough to reach the lowest accepted ground.
-        float startY = maxY + 2f;
-        Vector3 origin = new Vector3(point.x, startY, point.z);
-        float distance = (startY - minY) + 1f;
+        Vector3 origin = new Vector3(point.x, floorTopY + 6f, point.z);
 
         RaycastHit[] hits = Physics.RaycastAll(
             origin,
             Vector3.down,
-            distance,
+            30f,
             ~0,
             QueryTriggerInteraction.Ignore
         );
@@ -474,7 +491,7 @@ public class RoomChainManager : MonoBehaviour
             if (playerTransform != null && hit.collider.transform.IsChildOf(playerTransform)) continue;
             if (hit.normal.y < 0.5f) continue;
 
-            if (hit.point.y < minY || hit.point.y > maxY) continue;
+            if (hit.point.y < floorTopY - 1f || hit.point.y > floorTopY + 0.5f) continue;
 
             if (hit.point.y > best)
             {
