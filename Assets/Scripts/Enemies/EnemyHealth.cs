@@ -1,3 +1,4 @@
+using TMPro;
 using UnityEngine;
 
 public class EnemyHealth : MonoBehaviour
@@ -6,9 +7,12 @@ public class EnemyHealth : MonoBehaviour
 
     int currentHealth;
 
+    public TMP_Text text;
+
     void Start()
     {
         currentHealth = maxHealth;
+        text = GetComponentInChildren<TMP_Text>();
     }
 
     void Update()
@@ -17,6 +21,8 @@ public class EnemyHealth : MonoBehaviour
         {
             Destroy(gameObject);
         }
+
+        SetHealth();
     }
 
     public void TakeDamage(int damage)
@@ -28,5 +34,10 @@ public class EnemyHealth : MonoBehaviour
     public int GetHealth()
     {
         return currentHealth;
+    }
+
+    void SetHealth()
+    {
+        text.text = "Health: " + GetHealth();
     }
 }
