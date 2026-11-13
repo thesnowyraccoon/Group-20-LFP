@@ -14,8 +14,17 @@ EditorBuildSettings:
   - enabled: 0
     path: Assets/Scenes/RoomGenerationExperiment.unity
     guid: a9ca8f4c2dcdbb24da156b7d8b3cfa4f
-  - enabled: 1
+  - enabled: 0
     path: Assets/Scenes/Sanctuary_Alpha_Hayley.unity
     guid: 63384baf323596149a14e5910948ef89
+  - enabled: 1
+    path: Assets/Scenes/Sanctuary_Production_v1.unity
+    guid: f2e2c73c728cb214da0ab9d37e496172
+  - enabled: 1
+    path: Assets/Scenes/Final_Rebuild/Unease_Blockout_v1.unity
+    guid: 9fb01cbdb04f9a4488f334a7cfd39f20
+  - enabled: 1
+    path: Assets/Scenes/Final_Rebuild/Escape_Blockout_v1.unity
+    guid: 5a5d77ba455a6184c9ca686d3ef21caf
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
